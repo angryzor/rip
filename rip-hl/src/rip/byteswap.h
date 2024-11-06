@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <bit>
+#include <algorithm>
 
 #ifndef __cpp_lib_byteswap
 namespace std {

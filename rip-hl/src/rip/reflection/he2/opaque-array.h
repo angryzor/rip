@@ -236,33 +236,13 @@ namespace reflection {
 				return result;
 			}
 
-			bool operator==(const iterator& other) const {
-				return idx == other.idx;
-			}
-
-			bool operator!=(const iterator& other) const {
-				return idx != other.idx;
-			}
-
-			bool operator<(const iterator& other) const {
-				return idx < other.idx;
-			}
-
-			bool operator>(const iterator& other) const {
-				return idx > other.idx;
-			}
-
-			bool operator<=(const iterator& other) const {
-				return idx <= other.idx;
-			}
-
-			bool operator>=(const iterator& other) const {
-				return idx >= other.idx;
-			}
-
-			void* operator*() const {
-				return accessor[idx];
-			}
+			bool operator==(const iterator& other) const { return idx == other.idx; }
+			bool operator!=(const iterator& other) const { return idx != other.idx; }
+			bool operator<(const iterator& other) const { return idx < other.idx; }
+			bool operator>(const iterator& other) const { return idx > other.idx; }
+			bool operator<=(const iterator& other) const { return idx <= other.idx; }
+			bool operator>=(const iterator& other) const { return idx >= other.idx; }
+			void* operator*() const { return accessor[idx]; }
 		};
 
 		RflArrayAccessor(A<void*>& underlying, const hh::fnd::RflClassMember* member) : underlying{ static_cast<RflArray<A>&>(underlying) }, member{ member } {}

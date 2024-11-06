@@ -1,0 +1,3 @@
+[submodule "vendor/yyjson/yyjson"]
+	path = vendor/yyjson/yyjson
+	url = https://github.com/ibireme/yyjson.git

@@ -31,21 +31,18 @@ namespace rip::binary {
 			SerializeChunk(ReflectionSerializer& serializer) : serializer{ serializer } {}
 
 			template<typename T, std::enable_if_t<!std::is_fundamental_v<T>, bool> = true>
-			int visit_primitive(T* obj, const PrimitiveInfo& info) {
-				std::cout << "writing NF " << std::hex << obj << " as " << *obj << std::endl;
+			int visit_primitive_repr(T* obj, const PrimitiveReprInfo& info) {
 				serializer.backend.write<T>(*obj);
 				return 0;
 			}
 
 			template<typename T, std::enable_if_t<std::is_fundamental_v<T>, bool> = true>
-			int visit_primitive(T* obj, const PrimitiveInfo& info) {
-				std::cout << "writing " << std::hex << obj << " as " << *obj << std::endl;
+			int visit_primitive_repr(T* obj, const PrimitiveReprInfo& info) {
 				serializer.backend.write(info.erased ? T{} : *obj);
 				return 0;
 			}
 
-			int visit_primitive(const char** obj, const PrimitiveInfo& info) {
-				std::cout << "writing STR " << std::hex << obj << " as " << *obj << std::endl;
+			int visit_primitive_repr(const char** obj, const PrimitiveReprInfo& info) {
 				if constexpr (Backend::hasNativeStrings)
 					serializer.backend.write(*obj);
 				else
@@ -55,7 +52,7 @@ namespace rip::binary {
 				return 0;
 			}
 
-			int visit_primitive(csl::ut::VariableString* obj, const PrimitiveInfo& info) {
+			int visit_primitive_repr(ucsl::strings::VariableString* obj, const PrimitiveReprInfo& info) {
 				visit_primitive(reinterpret_cast<const char**>(obj));
 				serializer.backend.write(0ull);
 				return 0;
@@ -115,16 +112,25 @@ namespace rip::binary {
 			}
 
 			template<typename F>
-			int visit_field_data(void* obj, const FieldDataInfo& info, F f) {
+			int visit_carray(void* obj, const CArrayInfo& info, F f) {
+				for (size_t i = 0; i < info.size; i++)
+					f(addptr(obj, i * info.stride));
+				return 0;
+			}
+
+			template<typename F>
+			int visit_primitive(void* obj, const PrimitiveInfo& info, F f) {
 				serializer.backend.write_padding(info.alignment);
 
 				// Catch alignment issues.
-				assert((serializer.backend.tellp() - dbgStructStartLoc) == (reinterpret_cast<size_t>(obj) - reinterpret_cast<size_t>(currentStructAddr)));
+				if (currentStructAddr)
+					assert((serializer.backend.tellp() - dbgStructStartLoc) == (reinterpret_cast<size_t>(obj) - reinterpret_cast<size_t>(currentStructAddr)));
 
 				f(obj);
 
 				// Catch alignment issues.
-				assert((serializer.backend.tellp() - dbgStructStartLoc) == (reinterpret_cast<size_t>(obj) + info.size - reinterpret_cast<size_t>(currentStructAddr)));
+				if (currentStructAddr)
+					assert((serializer.backend.tellp() - dbgStructStartLoc) == (reinterpret_cast<size_t>(obj) + info.size - reinterpret_cast<size_t>(currentStructAddr)));
 				return 0;
 			}
 
@@ -167,6 +173,12 @@ namespace rip::binary {
 				currentStructAddr = prevStructAddr;
 				return 0;
 			}
+
+			template<typename F>
+			int visit_root(void* obj, const RootInfo& info, F f) {
+				serializer.enqueueBlock(info.size, info.alignment, [=]() { f(obj); });
+				return 0;
+			}
 		};
 
 	public:
@@ -175,10 +187,8 @@ namespace rip::binary {
 
 		template<template<typename> typename Traversal, typename F>
 		void serialize(F f) {
-			blobSerializer.enqueueBlock(0, 1, [&]() {
-				Traversal<SerializeChunk> operation{ *this };
-				f(operation);
-			});
+			Traversal<SerializeChunk> operation{ *this };
+			f(operation);
 			blobSerializer.processQueuedBlocks();
 		}
 	};

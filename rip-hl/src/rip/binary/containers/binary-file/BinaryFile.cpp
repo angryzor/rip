@@ -26,8 +26,6 @@ namespace rip::binary::containers::binary_file::v2 {
 		for (size_t offset : offsets) {
 			size_t diff = offset - last_offset;
 
-			std::cout << "Writing offset " << std::hex << offset << ", last offset was " << last_offset << " diff is " << diff << std::endl;
-
 			if (diff >= (1 << 16))
 				stream.write(static_cast<unsigned int>(byteswap_to_native(std::endian::big, static_cast<unsigned int>(diff >> 2)) | (3 << 30)));
 			else if (diff >= (1 << 8))
@@ -38,11 +36,10 @@ namespace rip::binary::containers::binary_file::v2 {
 			last_offset = offset;
 		}
 
-		stream.write(static_cast<unsigned char>(0));
+		//stream.write(static_cast<unsigned char>(0));
 	}
 
 	chunk_ostream::chunk_ostream(const magic_t<4>& magic, binary_ostream& stream, unsigned short additionalHeaderSize) : magic{ magic }, stream{ stream }, additionalHeaderSize{ additionalHeaderSize }, chunkOffset{ stream.tellp() }, offset_binary_ostream { stream, stream.tellp() + sizeof(ChunkHeader) + additionalHeaderSize } {
-		std::cout << "Chunk starting at " << std::hex << chunkOffset << ", data will start at " << chunkOffset + sizeof(ChunkHeader) + additionalHeaderSize << std::endl;
 		stream.write(ChunkHeader{ magic, 0, 0, 0, 0, additionalHeaderSize });
 
 		for (unsigned short i = 0; i < additionalHeaderSize; i++)
@@ -55,13 +52,10 @@ namespace rip::binary::containers::binary_file::v2 {
 
 	void chunk_ostream::finish() {
 		size_t stringTableStart = stream.tellp();
-		std::cout << "String table at " << std::hex << stringTableStart << std::endl;
 		writeStringTable();
 		size_t offsetTableStart = stream.tellp();
-		std::cout << "Offset table at " << std::hex << offsetTableStart << std::endl;
 		writeOffsetTable();
 		size_t chunkEnd = stream.tellp();
-		std::cout << "eof at " << std::hex << chunkEnd << std::endl;
 		
 		stream.seekp(chunkOffset);
 		stream.write(ChunkHeader{
@@ -135,9 +129,10 @@ namespace rip::binary::containers::binary_file::v2 {
 		forEachChunk([=](ChunkHeader* chunk) {
 			void* dataStart = addptr(chunk, sizeof(ChunkHeader) + chunk->additionalHeaderSize);
 			void* offsetLoc = dataStart;
-			void* offsets = addptr(chunk, sizeof(ChunkHeader) + chunk->additionalHeaderSize + chunk->dataSize + chunk->stringTableSize);
+			void* offsetsStart = addptr(chunk, sizeof(ChunkHeader) + chunk->additionalHeaderSize + chunk->dataSize + chunk->stringTableSize);
+			void* offsets = offsetsStart;
 
-			while ((*static_cast<unsigned char*>(offsets) & 0xC0) != 0) {
+			while (offsets != addptr(offsetsStart, chunk->offsetTableSize)) { //(*static_cast<unsigned char*>(offsets) & 0xC0) != 0) {
 				switch ((*static_cast<unsigned char*>(offsets) & 0xC0) >> 6) {
 				case 1: offsetLoc = addptr(offsetLoc, (*static_cast<unsigned char*>(offsets) & 0x3F) << 2); offsets = addptr(offsets, 1); break;
 				case 2: offsetLoc = addptr(offsetLoc, (byteswap_to_native(std::endian::big, *static_cast<unsigned short*>(offsets)) & 0x3FFF) << 2); offsets = addptr(offsets, 2); break;

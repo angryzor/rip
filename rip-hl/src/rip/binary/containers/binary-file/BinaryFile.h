@@ -4,6 +4,7 @@
 #include <rip/binary/stream.h>
 #include <rip/util/magic.h>
 #include <iostream>
+#include <vector>
 
 namespace rip::binary::containers::binary_file::v2 {
 	struct FileHeader {
@@ -55,14 +56,10 @@ namespace rip::binary::containers::binary_file::v2 {
 		~chunk_ostream();
 
 		template<typename T> void write(const T& obj) {
-			std::cout << "w DEFAULT " << std::hex << &obj << " as " << obj << std::endl;
-
 			stream.write(obj);
 		}
 
 		template<> void write(const char* const& obj) {
-			std::cout << "w STR " << std::hex << &obj << " as " << obj << std::endl;
-
 			if (obj != nullptr) {
 				strings.push_back({ tellp(), obj });
 				offsets.push_back(tellp());
@@ -72,8 +69,6 @@ namespace rip::binary::containers::binary_file::v2 {
 		}
 
 		template<typename T> void write(const serialized_types::o64_t<T>& obj) {
-			std::cout << "w OFF64 " << std::hex << &obj << " as " << obj << std::endl;
-
 			if (obj.has_value())
 				offsets.push_back(tellp());
 
@@ -81,8 +76,6 @@ namespace rip::binary::containers::binary_file::v2 {
 		}
 
 		template<typename T> void write(const serialized_types::o32_t<T>& obj) {
-			std::cout << "w OFF32 " << std::hex << &obj << " as " << obj << std::endl;
-
 			if (obj.has_value())
 				offsets.push_back(tellp());
 

@@ -5,8 +5,10 @@ target_sources(rip-hl
         "rip/binary/stream.h"
         "rip/binary/serialization/BlobSerializer.h"
         "rip/binary/serialization/ReflectionSerializer.h"
+        "rip/binary/serialization/JsonSerializer.h"
         "rip/binary/types.h"
         "rip/reflection/traversals/simplerfl.h"
+        "rip/reflection/traversals/rflclass.h"
         "rip/util/memory.h"
         "rip/reflection/traversals/types.h"
         "rip/reflection/traversals/algorithm-base.h"
@@ -14,4 +16,4 @@ target_sources(rip-hl
         "rip/util/magic.h"
         "rip/types.h"
         "rip/byteswap.h"
- "rip/binary/serialization/JsonSerializer.h")
+)

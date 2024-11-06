@@ -1,6 +1,11 @@
 #pragma once
 
 namespace rip::reflection {
+	struct RootInfo {
+		size_t alignment{};
+		size_t size{};
+	};
+
 	struct StructureInfo {
 		const char* name{};
 		size_t alignment{};
@@ -18,7 +23,7 @@ namespace rip::reflection {
 		size_t index{};
 	};
 
-	struct FieldDataInfo {
+	struct PrimitiveInfo {
 		size_t alignment{};
 		size_t size{};
 	};
@@ -28,7 +33,12 @@ namespace rip::reflection {
 		size_t targetSize{};
 	};
 
-	struct PrimitiveInfo {
+	struct CArrayInfo {
+		size_t size{};
+		size_t stride{};
+	};
+
+	struct PrimitiveReprInfo {
 		bool erased{};
 	};
 }
