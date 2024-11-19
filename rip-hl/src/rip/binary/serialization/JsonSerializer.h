@@ -1,14 +1,19 @@
 #pragma once
-#include <stf/basic-types.h>
-#include <rip/reflection/traversals/types.h>
+#include <ucsl-reflection/reflections/basic-types.h>
+#include <ucsl-reflection/traversals/types.h>
+#include <ucsl-reflection/opaque.h>
 #include <yyjson.h>
+#include <iomanip>
+#include <sstream>
 
 namespace rip::binary {
-	using namespace rip::reflection;
+	using namespace ucsl::reflection;
+	using namespace ucsl::reflection::traversals;
 
 	class JsonSerializer {
 		yyjson_mut_doc* doc{ yyjson_mut_doc_new(nullptr) };
 		const char* filename;
+		yyjson_mut_val* currentStruct{};
 
 		class SerializeChunk {
 		public:
@@ -22,134 +27,209 @@ namespace rip::binary {
 			};
 
 			JsonSerializer& serializer;
-			yyjson_mut_val* currentStruct{};
 
 			SerializeChunk(JsonSerializer& serializer) : serializer{ serializer } {}
 
 			template<std::integral T, std::enable_if_t<std::is_signed_v<T>, bool> = true>
-			result_type visit_primitive_repr(T* obj, const PrimitiveReprInfo& info) {
-				return yyjson_mut_sint(serializer.doc, *obj);
+			result_type visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
+				return yyjson_mut_sint(serializer.doc, obj);
 			}
 
 			template<std::integral T, std::enable_if_t<!std::is_signed_v<T>, bool> = true>
-			result_type visit_primitive_repr(T* obj, const PrimitiveReprInfo& info) {
-				return yyjson_mut_uint(serializer.doc, *obj);
+			result_type visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
+				return yyjson_mut_uint(serializer.doc, obj);
 			}
 
-			template<std::floating_point T>
-			result_type visit_primitive_repr(T* obj, const PrimitiveReprInfo& info) {
-				return yyjson_mut_real(serializer.doc, *obj);
+			result_type visit_primitive(float& obj, const PrimitiveInfo<float>& info) {
+				return yyjson_mut_float(serializer.doc, obj);
 			}
 
-			result_type visit_primitive_repr(ucsl::strings::VariableString* obj, const PrimitiveReprInfo& info) {
-				return yyjson_mut_str(serializer.doc, obj->c_str());
+			result_type visit_primitive(double& obj, const PrimitiveInfo<double>& info) {
+				return yyjson_mut_real(serializer.doc, obj);
 			}
 
-			result_type visit_primitive_repr(const char** obj, const PrimitiveReprInfo& info) {
-				return yyjson_mut_str(serializer.doc, *obj);
+			result_type visit_primitive(bool& obj, const PrimitiveInfo<bool>& info) {
+				return yyjson_mut_bool(serializer.doc, obj);
 			}
 
-			//template<typename F>
-			//result_type VisitEnum(void* obj, hh::fnd::RflClassMember::Type type, const hh::fnd::RflClassEnum* enumClass, F f) {
-			//	return f(obj);
-			//}
+			// These can probably be replaced by a recursive simplerfl traversal.
+			result_type visit_primitive(ucsl::math::Vector2& obj, const PrimitiveInfo<ucsl::math::Vector2>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
+				return res;
+			}
 
-			//template<typename F>
-			//result_type VisitFlags(void* obj, hh::fnd::RflClassMember::Type type, const hh::fnd::RflArray<const hh::fnd::RflClassEnumMember>* enumEntries, F f) {
-			//	return f(obj);
-			//}
+			result_type visit_primitive(ucsl::math::Vector3& obj, const PrimitiveInfo<ucsl::math::Vector3>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
+				return res;
+			}
 
-			//template<typename F, typename C, typename D>
-			//result_type visit_array(RflArrayAccessor<csl::ut::MoveArray>& arr, C c, D d, F f) {
-			//	serializer.backend.write(arr[0] == nullptr ? serialized_types::o64_t<void*>{} : serializer.enqueueBlock(arr.size() * arr.item_size(), arr.item_alignment(), [=]() {
-			//		for (auto item : arr)
-			//			f(item);
-			//	}));
-			//	serializer.backend.write(arr.size());
-			//	serializer.backend.write(arr.capacity());
-			//	serializer.backend.write(0ull);
-			//	return 0;
-			//}
+			result_type visit_primitive(ucsl::math::Position& obj, const PrimitiveInfo<ucsl::math::Position>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
+				return res;
+			}
 
-			//template<typename F, typename C, typename D>
-			//result_type visit_array(RflArrayAccessor<csl::ut::MoveArray32>& arr, C c, D d, F f) {
-			//	serializer.backend.write(arr[0] == nullptr ? serialized_types::o64_t<void*>{} : serializer.enqueueBlock(arr.size()* arr.item_size(), arr.item_alignment(), [=]() {
-			//		for (auto item : arr)
-			//			f(item);
-			//	}));
-			//	serializer.backend.write(arr.size());
-			//	serializer.backend.write(arr.capacity());
-			//	serializer.backend.write(0ull);
-			//	return 0;
-			//}
+			yyjson_mut_val* make_vec4(ucsl::math::Vector4& obj) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
+				yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w);
+				return res;
+			}
 
-			//template<typename F, typename C, typename D>
-			//result_type visit_array(RflArrayAccessor<hh::TArray>& arr, C c, D d, F f) {
-			//	serializer.backend.write(arr[0] == nullptr ? serialized_types::o64_t<void*>{} : serializer.enqueueBlock(arr.size() * arr.item_size(), arr.item_alignment(), [=]() {
-			//		for (auto item : arr)
-			//			f(item);
-			//	}));
-			//	serializer.backend.write(arr.size());
-			//	serializer.backend.write(static_cast<int64_t>(arr.capacity()));
-			//	return 0;
-			//}
+			result_type visit_primitive(ucsl::math::Vector4& obj, const PrimitiveInfo<ucsl::math::Vector4>& info) {
+				return make_vec4(obj);
+			}
+
+			result_type visit_primitive(ucsl::math::Quaternion& obj, const PrimitiveInfo<ucsl::math::Quaternion>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
+				yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w);
+				return res;
+			}
+
+			result_type visit_primitive(ucsl::math::Matrix34& obj, const PrimitiveInfo<ucsl::math::Matrix34>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_val(serializer.doc, res, "t", make_vec4(obj.t));
+				yyjson_mut_obj_add_val(serializer.doc, res, "u", make_vec4(obj.u));
+				yyjson_mut_obj_add_val(serializer.doc, res, "v", make_vec4(obj.v));
+				yyjson_mut_obj_add_val(serializer.doc, res, "w", make_vec4(obj.w));
+				return res;
+			}
+
+			result_type visit_primitive(ucsl::math::Matrix44& obj, const PrimitiveInfo<ucsl::math::Matrix44>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_val(serializer.doc, res, "t", make_vec4(obj.t));
+				yyjson_mut_obj_add_val(serializer.doc, res, "u", make_vec4(obj.u));
+				yyjson_mut_obj_add_val(serializer.doc, res, "v", make_vec4(obj.v));
+				yyjson_mut_obj_add_val(serializer.doc, res, "w", make_vec4(obj.w));
+				return res;
+			}
+
+			result_type visit_primitive(ucsl::colors::Color8& obj, const PrimitiveInfo<ucsl::colors::Color8>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_uint(serializer.doc, res, "r", obj.r);
+				yyjson_mut_obj_add_uint(serializer.doc, res, "g", obj.g);
+				yyjson_mut_obj_add_uint(serializer.doc, res, "b", obj.b);
+				yyjson_mut_obj_add_uint(serializer.doc, res, "a", obj.a);
+				return res;
+			}
+
+			result_type visit_primitive(ucsl::colors::Colorf& obj, const PrimitiveInfo<ucsl::colors::Colorf>& info) {
+				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_obj_add_float(serializer.doc, res, "r", obj.r);
+				yyjson_mut_obj_add_float(serializer.doc, res, "g", obj.g);
+				yyjson_mut_obj_add_float(serializer.doc, res, "b", obj.b);
+				yyjson_mut_obj_add_float(serializer.doc, res, "a", obj.a);
+				return res;
+			}
+
+			result_type visit_primitive(ucsl::objectids::ObjectIdV1& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV1>& info) {
+				return yyjson_mut_uint(serializer.doc, obj);
+			}
+
+			result_type visit_primitive(ucsl::objectids::ObjectIdV2& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV2>& info) {
+				std::ostringstream oss{};
+				oss << std::setfill('0') << std::setw(16) << std::hex << obj.groupId << std::setfill('0') << std::setw(16) << std::hex << obj.objectId;
+				return yyjson_mut_strcpy(serializer.doc, oss.str().c_str());
+			}
+
+			result_type visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
+				return yyjson_mut_str(serializer.doc, obj.c_str());
+			}
+
+			result_type visit_primitive(const char*& obj, const PrimitiveInfo<const char*>& info) {
+				return yyjson_mut_str(serializer.doc, obj);
+			}
+
+			template<typename O, typename F>
+			result_type visit_enum(opaque_obj& obj, const EnumInfo<O>& info, F f) {
+				yyjson_mut_val* val = f(obj).value;
+				auto v = static_cast<unsigned int>(yyjson_mut_get_uint(val));
+				for (auto& option : info.options)
+					if (option.GetIndex() == v)
+						return yyjson_mut_strcpy(serializer.doc, option.GetEnglishName());
+				return nullptr;
+			}
+
+			template<typename O, typename F>
+			result_type visit_flags(opaque_obj& obj, const FlagsInfo<O>& info, F f) {
+				return f(obj);
+			}
+
+			template<typename F, typename C, typename D, typename A>
+			result_type visit_array(A& arr, const ArrayInfo& info, C c, D d, F f) {
+				yyjson_mut_val* jarr = yyjson_mut_arr(serializer.doc);
+				for (auto& obj : arr)
+					yyjson_mut_arr_add_val(jarr, f(obj).value);
+				return jarr;
+			}
+
+			template<typename F, typename C, typename D, typename A>
+			result_type visit_tarray(A& arr, const ArrayInfo& info, C c, D d, F f) {
+				yyjson_mut_val* jarr = yyjson_mut_arr(serializer.doc);
+				for (auto& obj : arr)
+					yyjson_mut_arr_add_val(jarr, f(obj).value);
+				return jarr;
+			}
 
 			template<typename F>
-			result_type visit_pointer(void** obj, const PointerInfo& info, F f) {
-				return f(*obj);
+			result_type visit_pointer(opaque_obj*& obj, const PointerInfo& info, F f) {
+				return obj == nullptr ? yyjson_mut_null(serializer.doc) : f(*obj);
 			}
 
 			template<typename F>
-			result_type visit_carray(void* obj, const CArrayInfo& info, F f) {
-				yyjson_mut_val* arr = yyjson_mut_arr(serializer.doc);
+			result_type visit_carray(opaque_obj* obj, const CArrayInfo& info, F f) {
+				yyjson_mut_val* jarr = yyjson_mut_arr(serializer.doc);
 				for (size_t i = 0; i < info.size; i++)
-					yyjson_mut_arr_add_val(arr, f(addptr(obj, i * info.stride)).value);
-				return arr;
+					yyjson_mut_arr_add_val(jarr, f(*addptr(obj, i * info.stride)).value);
+				return jarr;
 			}
 
 			template<typename F>
-			result_type visit_primitive(void* obj, const PrimitiveInfo& info, F f) {
+			result_type visit_type(opaque_obj& obj, const TypeInfo& info, F f) {
 				return f(obj);
 			}
 
 			template<typename F>
-			result_type visit_field(void* obj, const FieldInfo& info, F f) {
-				yyjson_mut_obj_add_val(serializer.doc, currentStruct, info.name, f(obj).value);
+			result_type visit_field(opaque_obj& obj, const FieldInfo& info, F f) {
+				if (!info.erased)
+					yyjson_mut_obj_add_val(serializer.doc, serializer.currentStruct, info.name, f(obj).value);
 				return nullptr;
 			}
 
 			template<typename F>
-			result_type visit_array_field(void* obj, const ArrayFieldInfo& info, F f) {
+			result_type visit_base_struct(opaque_obj& obj, const StructureInfo& info, F f) {
 				return f(obj);
 			}
 
 			template<typename F>
-			result_type visit_array_field_item(void* obj, const ArrayFieldItemInfo& info, F f) {
-				return f(obj);
-			}
-
-			template<typename F>
-			result_type visit_base_struct(void* obj, const StructureInfo& info, F f) {
-				return f(obj);
-			}
-
-			template<typename F>
-			result_type visit_struct(void* obj, const StructureInfo& info, F f) {
+			result_type visit_struct(opaque_obj& obj, const StructureInfo& info, F f) {
 				yyjson_mut_val* thisStruct = yyjson_mut_obj(serializer.doc);
 
-				if (!currentStruct)
+				if (!serializer.currentStruct)
 					yyjson_mut_doc_set_root(serializer.doc, thisStruct);
 
-				yyjson_mut_val* prevStruct = currentStruct;
-				currentStruct = thisStruct;
+				yyjson_mut_val* prevStruct = serializer.currentStruct;
+				serializer.currentStruct = thisStruct;
 				result_type res = f(obj);
-				currentStruct = prevStruct;
+				serializer.currentStruct = prevStruct;
 
 				return thisStruct;
 			}
 
 			template<typename F>
-			result_type visit_root(void* obj, const RootInfo& info, F f) {
+			result_type visit_root(opaque_obj& obj, const RootInfo& info, F f) {
 				return f(obj);
 			}
 		};
@@ -161,11 +241,16 @@ namespace rip::binary {
 			yyjson_mut_doc_free(doc);
 		}
 
-		template<template<typename> typename Traversal, typename F>
-		void serialize(F f) {
+		template<template<typename> typename Traversal, typename T>
+		void serialize(T& data) {
 			Traversal<SerializeChunk> operation{ *this };
-			f(operation);
-			yyjson_mut_write_file(filename, doc, 0, nullptr, nullptr);
+			operation(data);
+			yyjson_write_err err;
+			yyjson_mut_write_file(filename, doc, YYJSON_WRITE_PRETTY_TWO_SPACES, nullptr, &err);
+
+			if (err.code != YYJSON_WRITE_SUCCESS) {
+				std::cout << "Error writing json: " << err.msg << std::endl;
+			}
 		}
 	};
 }

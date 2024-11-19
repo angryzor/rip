@@ -1,23 +1,29 @@
 #include <vector>
 #include <string>
+#include <ucsl/magic.h>
 #include <rip/binary/stream.h>
 #include <rip/binary/types.h>
-#include <rip/util/magic.h>
-#include <rip/types.h>
-#include <rip/byteswap.h>
+#include <rip/util/byteswap.h>
+#include <rip/util/memory.h>
 #include <iostream>
 #include "BinaryFile.h"
 
 namespace rip::binary::containers::binary_file::v2 {
 	void chunk_ostream::writeStringTable() {
-		for (auto& [offset, string] : strings) {
+		for (auto& string : strings) {
+			auto offsets = stringOffsets[string];
 			auto pos = tellp();
 
-			seekp(offset);
-			stream.write(pos);
+			for (auto offset : offsets) {
+				seekp(offset);
+				stream.write(pos);
+			}
+
 			seekp(pos);
 			stream.write(*string.c_str(), string.size() + 1);
 		}
+
+		stream.write_padding(4);
 	}
 
 	void chunk_ostream::writeOffsetTable() {
@@ -27,19 +33,19 @@ namespace rip::binary::containers::binary_file::v2 {
 			size_t diff = offset - last_offset;
 
 			if (diff >= (1 << 16))
-				stream.write(static_cast<unsigned int>(byteswap_to_native(std::endian::big, static_cast<unsigned int>(diff >> 2)) | (3 << 30)));
+				stream.write(byteswap_to_native(std::endian::big, static_cast<unsigned int>((diff >> 2u) | (3u << 30u))));
 			else if (diff >= (1 << 8))
-				stream.write(static_cast<unsigned short>(byteswap_to_native(std::endian::big, static_cast<unsigned short>(diff >> 2)) | (2 << 14)));
+				stream.write(byteswap_to_native(std::endian::big, static_cast<unsigned short>((diff >> 2u) | (2u << 14u))));
 			else
-				stream.write(static_cast<unsigned char>(diff >> 2 | (1 << 6)));
+				stream.write(static_cast<unsigned char>((diff >> 2u) | (1u << 6u)));
 
 			last_offset = offset;
 		}
 
-		//stream.write(static_cast<unsigned char>(0));
+		stream.write_padding(4);
 	}
 
-	chunk_ostream::chunk_ostream(const magic_t<4>& magic, binary_ostream& stream, unsigned short additionalHeaderSize) : magic{ magic }, stream{ stream }, additionalHeaderSize{ additionalHeaderSize }, chunkOffset{ stream.tellp() }, offset_binary_ostream { stream, stream.tellp() + sizeof(ChunkHeader) + additionalHeaderSize } {
+	chunk_ostream::chunk_ostream(const ucsl::magic_t<4>& magic, binary_ostream& stream, unsigned short additionalHeaderSize) : magic{ magic }, stream{ stream }, additionalHeaderSize{ additionalHeaderSize }, chunkOffset{ stream.tellp() }, offset_binary_ostream { stream, stream.tellp() + sizeof(ChunkHeader) + additionalHeaderSize } {
 		stream.write(ChunkHeader{ magic, 0, 0, 0, 0, additionalHeaderSize });
 
 		for (unsigned short i = 0; i < additionalHeaderSize; i++)
@@ -132,7 +138,7 @@ namespace rip::binary::containers::binary_file::v2 {
 			void* offsetsStart = addptr(chunk, sizeof(ChunkHeader) + chunk->additionalHeaderSize + chunk->dataSize + chunk->stringTableSize);
 			void* offsets = offsetsStart;
 
-			while (offsets != addptr(offsetsStart, chunk->offsetTableSize)) { //(*static_cast<unsigned char*>(offsets) & 0xC0) != 0) {
+			while (offsets != addptr(offsetsStart, chunk->offsetTableSize) && (*static_cast<unsigned char*>(offsets) & 0xC0) != 0) {
 				switch ((*static_cast<unsigned char*>(offsets) & 0xC0) >> 6) {
 				case 1: offsetLoc = addptr(offsetLoc, (*static_cast<unsigned char*>(offsets) & 0x3F) << 2); offsets = addptr(offsets, 1); break;
 				case 2: offsetLoc = addptr(offsetLoc, (byteswap_to_native(std::endian::big, *static_cast<unsigned short*>(offsets)) & 0x3FFF) << 2); offsets = addptr(offsets, 2); break;
@@ -143,7 +149,8 @@ namespace rip::binary::containers::binary_file::v2 {
 
 				byteswap_deep_to_native(file->endianness == 'B' ? std::endian::big : std::endian::little, *offset);
 
-				*offset += reinterpret_cast<size_t>(dataStart);
+				if (*offset != 0)
+					*offset += reinterpret_cast<size_t>(dataStart);
 			}
 		});
 	}

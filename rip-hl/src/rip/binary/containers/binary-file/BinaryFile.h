@@ -1,15 +1,16 @@
 #pragma once
 #include <bit>
-#include <rip/byteswap.h>
+#include <map>
 #include <rip/binary/stream.h>
-#include <rip/util/magic.h>
+#include <rip/util/byteswap.h>
+#include <ucsl/magic.h>
 #include <iostream>
 #include <vector>
 
 namespace rip::binary::containers::binary_file::v2 {
 	struct FileHeader {
-		magic_t<4> magic{};
-		magic_t<3> version{};
+		ucsl::magic_t<4> magic{};
+		ucsl::magic_t<3> version{};
 		char endianness{};
 		unsigned int fileSize{};
 		unsigned short chunkCount{};
@@ -22,7 +23,7 @@ namespace rip::binary::containers::binary_file::v2 {
 	};
 
 	struct ChunkHeader {
-		magic_t<4> magic{};
+		ucsl::magic_t<4> magic{};
 		unsigned int size{};
 		unsigned int dataSize{};
 		unsigned int stringTableSize{};
@@ -40,10 +41,11 @@ namespace rip::binary::containers::binary_file::v2 {
 
 	class chunk_ostream : public offset_binary_ostream {
 		binary_ostream& stream;
-		const magic_t<4> magic{};
+		const ucsl::magic_t<4> magic{};
 		size_t chunkOffset{};
 		unsigned short additionalHeaderSize{};
-		std::vector<std::pair<size_t, std::string>> strings{};
+		std::vector<std::string> strings{}; // This seems superfluous but it is here to keep the discovery order, to generate a file that is closer to official files.
+		std::map<std::string, std::vector<size_t>> stringOffsets{};
 		std::vector<size_t> offsets{};
 
 		void writeStringTable();
@@ -52,7 +54,7 @@ namespace rip::binary::containers::binary_file::v2 {
 	public:
 		static constexpr bool hasNativeStrings = true;
 
-		chunk_ostream(const magic_t<4>& magic, binary_ostream& stream, unsigned short additionalHeaderSize = 0x18);
+		chunk_ostream(const ucsl::magic_t<4>& magic, binary_ostream& stream, unsigned short additionalHeaderSize = 0x18);
 		~chunk_ostream();
 
 		template<typename T> void write(const T& obj) {
@@ -61,24 +63,28 @@ namespace rip::binary::containers::binary_file::v2 {
 
 		template<> void write(const char* const& obj) {
 			if (obj != nullptr) {
-				strings.push_back({ tellp(), obj });
-				offsets.push_back(tellp());
+				auto i = stringOffsets.find(obj);
+
+				if (i == stringOffsets.end()) {
+					strings.emplace_back(obj);
+					stringOffsets[obj] = { tellp() };
+				}
+				else
+					i->second.emplace_back(tellp());
+
+				offsets.emplace_back(tellp());
 			}
 
 			stream.write(0ull);
 		}
 
 		template<typename T> void write(const serialized_types::o64_t<T>& obj) {
-			if (obj.has_value())
-				offsets.push_back(tellp());
-
+			offsets.emplace_back(tellp());
 			stream.write(obj.has_value() ? obj.value() : 0ull);
 		}
 
 		template<typename T> void write(const serialized_types::o32_t<T>& obj) {
-			if (obj.has_value())
-				offsets.push_back(tellp());
-
+			offsets.emplace_back(tellp());
 			stream.write(obj.has_value() ? obj.value() : 0u);
 		}
 

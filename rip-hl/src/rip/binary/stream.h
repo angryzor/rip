@@ -6,6 +6,10 @@
 #include "types.h"
 
 namespace rip::binary {
+	namespace internal {
+		inline char zeroes[128]{};
+	}
+
 	class binary_istream {
 		std::istream& stream;
 	public:
@@ -20,28 +24,32 @@ namespace rip::binary {
 	class binary_ostream {
 		std::ostream& stream;
 		std::endian endianness;
+		size_t shadow_pos; // prevent doing slow tellp() calls. this does of course mean that other modules writing to the stream will cause incorrect results.
 
 	public:
-		binary_ostream(std::ostream& stream, std::endian endianness = std::endian::native) : stream{ stream }, endianness{ endianness } {}
+		binary_ostream(std::ostream& stream, std::endian endianness = std::endian::native) : stream{ stream }, endianness{ endianness }, shadow_pos{ (size_t)stream.tellp() } {}
 
 		template<typename T>
 		void write(const T& obj, size_t count = 1) {
-			stream.write(reinterpret_cast<const char*>(&obj), sizeof(T) * count);
+			size_t size = sizeof(T) * count;
+			stream.write(reinterpret_cast<const char*>(&obj), size);
+			shadow_pos += size;
 		}
 
 		void write_padding(size_t alignment) {
-			size_t pos = stream.tellp();
-			size_t offset = align(pos, alignment);
-			for (size_t i = 0; i < offset - pos; i++)
-				stream.put(0);
+			size_t offset = align(shadow_pos, alignment);
+			size_t size = offset - shadow_pos;
+			stream.write(internal::zeroes, size);
+			shadow_pos = offset;
 		}
 
 		void seekp(size_t loc) {
 			stream.seekp(loc);
+			shadow_pos = loc;
 		}
 
 		size_t tellp() {
-			return stream.tellp();
+			return shadow_pos;
 		}
 	};
 
