@@ -324,6 +324,8 @@ namespace rip::binary {
 			result = (opaque_obj*)GameInterface::get_fallback_allocator()->Alloc(size, 16);
 			writeState.worker.allocator.origin = result;
 
+			memset(result, 0, size);
+
 			Traversal<OperationBase<OperationState<SequentialMemoryBlockAllocator<opaque_obj>>>> writeOp{ writeState };
 			writeOp.operator()<T>(*(T*)result);
 			writeState.worker.processQueuedBlocks();

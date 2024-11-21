@@ -7,13 +7,19 @@
 #include <ucsl-reflection/traversals/rflclass.h>
 #include <ucsl-reflection/game-interfaces/standalone/game-interface.h>
 #include <ucsl/resources/asm/v103.h>
+#include <ucsl/resources/fxcol/v1.h>
 #include <ucsl/resources/object-world/v2.h>
 #include <ucsl/resources/object-world/v3.h>
+#include <ucsl/resources/rfl/v1.h>
+#include <ucsl/resources/rfl/v2.h>
 #include <ucsl/resources/vertex-animation-texture/v1-rangers.h>
 #include <ucsl/resources/vertex-animation-texture/v1-miller.h>
 #include <ucsl-reflection/reflections/resources/asm/v103.h>
+#include <ucsl-reflection/reflections/resources/fxcol/v1.h>
 #include <ucsl-reflection/reflections/resources/object-world/v2.h>
 #include <ucsl-reflection/reflections/resources/object-world/v3.h>
+#include <ucsl-reflection/reflections/resources/rfl/v1.h>
+#include <ucsl-reflection/reflections/resources/rfl/v2.h>
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-rangers.h>
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-miller.h>
 #include <CLI/CLI.hpp>
@@ -21,6 +27,15 @@
 #include <iostream>
 #include <map>
 #include <filesystem>
+
+static std::string rflClass{};
+const char* get_rfl1_class(const ucsl::resources::rfl::v1::Ref1Data<>& parent) { return rflClass.c_str(); }
+const char* get_rfl2_class(const ucsl::resources::rfl::v2::Ref2Data<>& parent) { return rflClass.c_str(); }
+
+namespace simplerfl {
+	template<> struct canonical<ucsl::resources::rfl::v1::Ref1Data<>> { using type = ucsl::resources::rfl::v1::reflections::Ref1Data<ucsl::resources::rfl::v1::Ref1RflData, get_rfl1_class>; };
+    template<> struct canonical<ucsl::resources::rfl::v2::Ref2Data<>> { using type = ucsl::resources::rfl::v2::reflections::Ref2Data<ucsl::resources::rfl::v2::Ref2RflData, get_rfl2_class>; };
+}
 
 template<typename TS>
 using GI = ucsl::reflection::game_interfaces::standalone::StandaloneGameInterface<TS>;
@@ -41,6 +56,7 @@ enum class ResourceType {
 	GEDIT,
 	RFL,
 	VAT,
+	FXCOL,
 };
 
 std::map<std::string, Game> gameMap{
@@ -57,8 +73,9 @@ std::map<std::string, Format> formatMap{
 std::map<std::string, ResourceType> resourceTypeMap{
 	{ "asm", ResourceType::ASM },
 	{ "gedit", ResourceType::GEDIT },
+	{ "rfl", ResourceType::RFL },
 	{ "vat", ResourceType::VAT },
-	//{ "rfl", ResourceType::RFL },
+	{ "fxcol", ResourceType::FXCOL },
 };
 
 std::map<Game, std::string> gameMapReverse{
@@ -75,22 +92,25 @@ std::map<Format, std::string> formatMapReverse{
 std::map<ResourceType, std::string> resourceTypeMapReverse{
 	{ ResourceType::ASM, "asm" },
 	{ ResourceType::GEDIT, "gedit" },
-	//{ ResourceType::RFL, "rfl" },
+	{ ResourceType::RFL, "rfl" },
 	{ ResourceType::VAT, "vat" },
+	{ ResourceType::FXCOL, "fxcol" },
 };
 
 std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".asm", ResourceType::ASM },
 	{ ".gedit", ResourceType::GEDIT },
-	//{ ".rfl", ResourceType::RFL },
+	{ ".rfl", ResourceType::RFL },
 	{ ".vat", ResourceType::VAT },
+	{ ".fxcol", ResourceType::FXCOL },
 };
 
 std::map<ResourceType, std::string> extByResourceType{
 	{ ResourceType::ASM, ".asm" },
 	{ ResourceType::GEDIT, ".gedit" },
-	//{ ResourceType::RFL, ".rfl" },
+	{ ResourceType::RFL, ".rfl" },
 	{ ResourceType::VAT, ".vat" },
+	{ ResourceType::FXCOL, ".fxcol" },
 };
 
 struct Config {
@@ -305,6 +325,39 @@ void convertAsm(const Config& config) {
 	throw std::runtime_error{ "Unknown ASM version." };
 }
 
+void convertRfl(const Config& config) {
+	std::string version = config.version.value_or("2");
+
+	if (rflClass.empty())
+		throw std::runtime_error{ "--rfl-class is required to convert RFL files!" };
+
+	if (version == "1") {
+		std::unique_ptr<InputFile<ucsl::resources::rfl::v1::Ref1Data<>>> ifl{ loadInputFileForGame<ucsl::resources::rfl::v1::Ref1Data<>>(config) };
+		writeOutputFileForGame<ucsl::resources::rfl::v1::Ref1Data<>>(config, ifl->getData());
+		return;
+	}
+
+	if (version == "2") {
+		std::unique_ptr<InputFile<ucsl::resources::rfl::v2::Ref2Data<>>> ifl{ loadInputFileForGame<ucsl::resources::rfl::v2::Ref2Data<>>(config) };
+		writeOutputFileForGame<ucsl::resources::rfl::v2::Ref2Data<>>(config, ifl->getData());
+		return;
+	}
+
+	throw std::runtime_error{ "Unknown RFL version." };
+}
+
+void convertFxCol(const Config& config) {
+	std::string version = config.version.value_or("1");
+
+	if (version == "1") {
+		std::unique_ptr<InputFile<ucsl::resources::fxcol::v1::FxColData>> ifl{ loadInputFileForGame<ucsl::resources::fxcol::v1::FxColData>(config) };
+		writeOutputFileForGame<ucsl::resources::fxcol::v1::FxColData>(config, ifl->getData());
+		return;
+	}
+
+	throw std::runtime_error{ "Unknown FxCol version." };
+}
+
 void convertGedit(const Config& config) {
 	std::string version = config.version.value_or("3");
 
@@ -355,7 +408,7 @@ int main(int argc, char** argv) {
 		->transform(CLI::CheckedTransformer(gameMap, CLI::ignore_case));
 	app.add_option("-r,--resource-type", config.resourceType, "The resource type.")
 		->transform(CLI::CheckedTransformer(resourceTypeMap, CLI::ignore_case));
-	auto* version = app.add_option("-v,--version", config.version, "The resource version. Available options are: asm -> 103; gedit -> 2, 3; vat -> 1-rangers, 1-miller");
+	auto* version = app.add_option("-v,--version", config.version, "The resource version. Available options are: asm -> 103; gedit -> 2, 3; vat -> 1-rangers, 1-miller; fxcol -> 1");
 	app.add_option("-i,--input-format", config.inputFormat, "The input format.")
 		->transform(CLI::CheckedTransformer(formatMap, CLI::ignore_case));
 	app.add_option("-o,--output-format", config.outputFormat, "The output format.")
@@ -363,6 +416,7 @@ int main(int argc, char** argv) {
 	auto* schemaOpt = app.add_option("-s,--schema", config.schema, "The RFL Schema file to use. (doesn't work yet)");
 	app.add_option("-t,--hedgeset-template", config.hedgesetTemplate, "The HedgeSet template file to use.")
 		->excludes(schemaOpt);
+	app.add_option("-c,--rfl-class", rflClass, "When converting RFL files: the name of the RflClass to use.");
 	app.validate_positionals();
 
 	CLI11_PARSE(app, argc, argv);
@@ -380,8 +434,9 @@ int main(int argc, char** argv) {
 		switch (config.getResourceType()) {
 		case ResourceType::ASM: convertAsm(config); break;
 		case ResourceType::GEDIT: convertGedit(config); break;
-		//case ResourceType::RFL: convertRfl(config); break;
+		case ResourceType::RFL: convertRfl(config); break;
 		case ResourceType::VAT: convertVAT(config); break;
+		case ResourceType::FXCOL: convertFxCol(config); break;
 		}
 
 		std::cerr << "Conversion successful." << std::endl;

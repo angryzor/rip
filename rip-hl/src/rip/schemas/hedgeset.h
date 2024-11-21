@@ -93,6 +93,7 @@ namespace rip::schemas::hedgeset {
 			std::string name{};
 			std::string type{};
 			std::optional<std::string> subtype{};
+			std::optional<rfl::Object<EnumValueDef>> flags{};
 			std::optional<unsigned int> array_size{};
 			std::optional<unsigned int> alignment{};
 			std::optional<Ranges> min_range{};
@@ -122,15 +123,16 @@ namespace rip::schemas::hedgeset {
 
 	template<typename RflSystem>
 	class Template {
-		std::map<std::string, std::shared_ptr<const typename RflSystem::RflClassEnum>> enums{};
-		std::map<std::string, std::shared_ptr<const typename RflSystem::RflClass>> rflClasses{};
+		std::map<std::string, std::shared_ptr<typename RflSystem::RflClassEnum>> enums{};
+		std::map<std::string, std::shared_ptr<typename RflSystem::RflClass>> rflClasses{};
 		std::map<std::string, std::string> objects{};
 
 		struct TypeConversionResult {
 			typename RflSystem::RflClassMember::Type type{ RflSystem::RflClassMember::Type::VOID };
 			typename RflSystem::RflClassMember::Type subtype{ RflSystem::RflClassMember::Type::VOID };
-			std::optional<std::shared_ptr<const typename RflSystem::RflClass>> structt{ std::nullopt };
-			std::optional<std::shared_ptr<const typename RflSystem::RflClassEnum>> enumm{ std::nullopt };
+			std::optional<std::shared_ptr<typename RflSystem::RflClass>> structt{ std::nullopt };
+			std::optional<std::shared_ptr<typename RflSystem::RflClassEnum>> enumm{ std::nullopt };
+			std::optional<std::vector<typename RflSystem::RflClassEnumMember>> flagValues{ std::nullopt };
 		};
 
 		typename RflSystem::RflClassMember::Type get_primitive_type(const std::string& type) {
@@ -147,9 +149,23 @@ namespace rip::schemas::hedgeset {
 			if (type == "vector2") return RflSystem::RflClassMember::Type::VECTOR2;
 			if (type == "vector3") return RflSystem::RflClassMember::Type::VECTOR3;
 			if (type == "vector4") return RflSystem::RflClassMember::Type::VECTOR4;
+			if (type == "quaternion") return RflSystem::RflClassMember::Type::QUATERNION;
+			if (type == "matrix34") return RflSystem::RflClassMember::Type::MATRIX34;
+			if (type == "matrix44") return RflSystem::RflClassMember::Type::MATRIX44;
+			if (type == "color8") return RflSystem::RflClassMember::Type::COLOR_BYTE;
+			if (type == "colorf") return RflSystem::RflClassMember::Type::COLOR_FLOAT;
 			if (type == "string") return RflSystem::RflClassMember::Type::STRING;
 			if (type == "object_reference") return RflSystem::RflClassMember::Type::OBJECT_ID;
 			return RflSystem::RflClassMember::Type::VOID;
+		}
+
+		std::vector<typename RflSystem::RflClassEnumMember> get_flag_values(const json_reflections::MemberDef& member) {
+			std::vector<typename RflSystem::RflClassEnumMember> flagValues{};
+
+			for (auto& [name, enumValueDef] : member.flags.value())
+				flagValues.push_back(typename RflSystem::RflClassEnumMember{ enumValueDef.value, name, enumValueDef.descriptions.has_value() ? enumValueDef.descriptions.value().get("ja").value_or("") : "" });
+
+			return std::move(flagValues);
 		}
 
 		TypeConversionResult get_type(const json_reflections::MemberDef& member, const json_reflections::Template& templ) {
@@ -161,6 +177,9 @@ namespace rip::schemas::hedgeset {
 
 				return { .type = RflSystem::RflClassMember::Type::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(member.type, e) };
 			}
+
+			if (member.type == "flags")
+				return { .type = RflSystem::RflClassMember::Type::FLAGS, .subtype = get_primitive_type(member.subtype.value()), .flagValues = get_flag_values(member) };
 
 			if (member.type != "array")
 				return { .type = get_primitive_type(member.type) };
@@ -195,35 +214,43 @@ namespace rip::schemas::hedgeset {
 			return { .type = RflSystem::RflClassMember::Type::ARRAY, .subtype = get_primitive_type(subtype) };
 		}
 
-		std::shared_ptr<const typename RflSystem::RflClassEnum> load_enum(const std::string& name, const json_reflections::EnumDef& enumDef) {
+		std::shared_ptr<typename RflSystem::RflClassEnum> load_enum(const std::string& name, const json_reflections::EnumDef& enumDef) {
 			if (enums.contains(name))
 				return enums[name];
+
+			auto [resIt, resSuccess] = enums.emplace(name, std::make_shared<typename RflSystem::RflClassEnum>(name, std::vector<typename RflSystem::RflClassEnumMember>{}));
+			auto [resName, res] = *resIt;
 
 			std::vector<typename RflSystem::RflClassEnumMember> enumMembers{};
 
 			for (auto& [name, enumValueDef] : enumDef.values)
 				enumMembers.push_back(typename RflSystem::RflClassEnumMember{ enumValueDef.value, name, enumValueDef.descriptions.has_value() ? enumValueDef.descriptions.value().get("ja").value_or("") : "" });
 
-			enums.emplace(name, std::make_shared<const typename RflSystem::RflClassEnum>(name, std::move(enumMembers)));
+			res->values = std::move(enumMembers);
 
 			return enums[name];
 		}
 
-		std::shared_ptr<const typename RflSystem::RflClass> load_rfl_class(const std::string& name, const json_reflections::RflClassDef& rflClassDef, const json_reflections::Template& templ) {
+		std::shared_ptr<typename RflSystem::RflClass> load_rfl_class(const std::string& name, const json_reflections::RflClassDef& rflClassDef, const json_reflections::Template& templ) {
 			if (rflClasses.contains(name))
 				return rflClasses[name];
 
-			std::vector<std::shared_ptr<const typename RflSystem::RflClassEnum>> rflClassEnums{};
-			std::vector<std::shared_ptr<const typename RflSystem::RflClassMember>> rflClassMembers{};
+			auto [resIt, resSuccess] = rflClasses.emplace(name, std::make_shared<typename RflSystem::RflClass>(name, std::nullopt, 0, std::vector<std::shared_ptr<typename RflSystem::RflClassEnum>>{}, std::vector<std::shared_ptr<typename RflSystem::RflClassMember>>{}, 0));
+			auto [resName, res] = *resIt;
+
+			std::vector<std::shared_ptr<typename RflSystem::RflClassEnum>> rflClassEnums{};
+			std::vector<std::shared_ptr<typename RflSystem::RflClassMember>> rflClassMembers{};
 
 			unsigned int offset{};
 
-			std::optional<std::shared_ptr<const typename RflSystem::RflClass>> parent{};
+			std::optional<std::shared_ptr<typename RflSystem::RflClass>> parent{};
 
 			if (rflClassDef.parent.has_value()) {
-				parent = templ.structs.get(rflClassDef.parent.value()).transform([&](const auto& e) -> std::optional<std::shared_ptr<const typename RflSystem::RflClass>> { return load_rfl_class(rflClassDef.parent.value(), e, templ); }).value();
+				parent = templ.structs.get(rflClassDef.parent.value()).transform([&](const auto& e) -> std::optional<std::shared_ptr<typename RflSystem::RflClass>> { return load_rfl_class(rflClassDef.parent.value(), e, templ); }).value();
 				offset = parent.value()->GetSize();
 			}
+
+			res->parent = parent;
 
 			if (rflClassDef.fields.has_value()) {
 				for (auto& memberDef : rflClassDef.fields.value()) {
@@ -232,27 +259,25 @@ namespace rip::schemas::hedgeset {
 					if (convertedTypes.enumm.has_value())
 						rflClassEnums.emplace_back(convertedTypes.enumm.value());
 
-					typename RflSystem::RflClassMember member{
+					auto member = rflClassMembers.emplace_back(std::make_shared<typename RflSystem::RflClassMember>(
 						memberDef.name,
 						convertedTypes.structt,
 						convertedTypes.enumm,
+						std::move(convertedTypes.flagValues),
 						convertedTypes.type,
 						convertedTypes.subtype,
 						(memberDef.array_size.has_value() && memberDef.array_size.value() > 0) ? memberDef.array_size.value() : 0,
-						0,
-					};
+						0
+					));
 
-					offset = align(offset, member.GetAlignment());
-
-					rflClassMembers.emplace_back(std::make_shared<const typename RflSystem::RflClassMember>(member.name, member.classDef, member.enumDef, member.type, member.subType, member.arrayLength, offset));
-
-					offset += (unsigned int)member.GetSize();
+					member->offset = offset = align(offset, member->GetAlignment());
+					offset += (unsigned int)member->GetSize();
 				}
 			}
 
-			typename RflSystem::RflClass rflClass{ name, parent, 0, std::move(rflClassEnums), std::move(rflClassMembers), 0 };
-
-			rflClasses.emplace(name, std::make_shared<typename RflSystem::RflClass>(name, parent, align(offset, rflClass.GetAlignment()), std::move(rflClass.enums), std::move(rflClass.members), 0));
+			res->enums = std::move(rflClassEnums);
+			res->members = std::move(rflClassMembers);
+			res->size = align(offset, res->GetAlignment());
 
 			return rflClasses[name];
 		}
