@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(rip VERSION 0.0.1
+project(rip VERSION 0.0.3
                  DESCRIPTION "Sonic Team Formats"
                  LANGUAGES CXX)
 
