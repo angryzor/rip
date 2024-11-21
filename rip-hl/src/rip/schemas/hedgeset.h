@@ -11,6 +11,7 @@
 #include <ucsl-reflection/game-interfaces/standalone/rflsystem.h>
 #include <rfl.hpp>
 #include <rfl/json.hpp>
+#include <rip/util/memory.h>
 
 namespace rip::schemas::hedgeset {
 	namespace json_reflections {

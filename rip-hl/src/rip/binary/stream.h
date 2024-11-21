@@ -7,7 +7,7 @@
 
 namespace rip::binary {
 	namespace internal {
-		inline char zeroes[128]{};
+		inline char zeroes[8192]{};
 	}
 
 	class binary_istream {
@@ -37,10 +37,12 @@ namespace rip::binary {
 		}
 
 		void write_padding(size_t alignment) {
-			size_t offset = align(shadow_pos, alignment);
-			size_t size = offset - shadow_pos;
+			write_padding_bytes(align(shadow_pos, alignment) - shadow_pos);
+		}
+
+		void write_padding_bytes(size_t size) {
 			stream.write(internal::zeroes, size);
-			shadow_pos = offset;
+			shadow_pos += size;
 		}
 
 		void seekp(size_t loc) {
@@ -68,6 +70,10 @@ namespace rip::binary {
 
 		void write_padding(size_t alignment) {
 			stream.write_padding(alignment);
+		}
+
+		void write_padding_bytes(size_t size) {
+			stream.write_padding_bytes(size);
 		}
 
 		void seekp(size_t loc) {

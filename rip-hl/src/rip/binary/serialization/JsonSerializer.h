@@ -197,6 +197,11 @@ namespace rip::binary {
 			}
 
 			template<typename F>
+			result_type visit_union(opaque_obj& obj, const UnionInfo& info, F f) {
+				return f(obj);
+			}
+
+			template<typename F>
 			result_type visit_type(opaque_obj& obj, const TypeInfo& info, F f) {
 				return f(obj);
 			}

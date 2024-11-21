@@ -115,6 +115,14 @@ namespace rip::binary {
 			}
 
 			template<typename F>
+			int visit_union(opaque_obj& obj, const UnionInfo& info, F f) {
+				size_t unionStart = serializer.backend.tellp();
+				f(obj);
+				serializer.backend.write_padding_bytes(info.size - (serializer.backend.tellp() - unionStart));
+				return 0;
+			}
+
+			template<typename F>
 			int visit_type(opaque_obj& obj, const TypeInfo& info, F f) {
 				serializer.backend.write_padding(info.alignment);
 
