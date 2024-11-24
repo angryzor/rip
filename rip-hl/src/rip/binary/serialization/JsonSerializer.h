@@ -159,7 +159,7 @@ namespace rip::binary {
 			template<typename O, typename F>
 			result_type visit_enum(opaque_obj& obj, const EnumInfo<O>& info, F f) {
 				yyjson_mut_val* val = f(obj).value;
-				auto v = static_cast<unsigned int>(yyjson_mut_get_uint(val));
+				auto v = yyjson_mut_get_sint(val);
 				for (auto& option : info.options)
 					if (option.GetIndex() == v)
 						return yyjson_mut_strcpy(serializer.doc, option.GetEnglishName());

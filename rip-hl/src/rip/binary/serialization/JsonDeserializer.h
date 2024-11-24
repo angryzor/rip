@@ -191,7 +191,7 @@ namespace rip::binary {
 				for (auto& option : info.options) {
 					if (!strcmp(option.GetEnglishName(), str)) {
 						yyjson_mut_doc* mdoc = yyjson_mut_doc_new(nullptr);
-						yyjson_mut_val* mval = yyjson_mut_uint(mdoc, option.GetIndex());
+						yyjson_mut_val* mval = yyjson_mut_sint(mdoc, option.GetIndex());
 						yyjson_doc* tmpdoc = yyjson_mut_val_imut_copy(mval, nullptr);
 						with_val(yyjson_doc_get_root(tmpdoc), [&]() { return f(obj); });
 						yyjson_doc_free(tmpdoc);

@@ -57,7 +57,7 @@ namespace rip::schemas::hedgeset {
 		//template<> struct hson_type<char> { static constexpr const char* type = "char"; static constexpr std::optional<unsigned int> alignment = std::nullopt; using lit = CharType; };
 
 		struct EnumValueDef {
-			unsigned int value{};
+			int value{};
 			std::optional<rfl::Object<std::string>> descriptions{};
 		};
 

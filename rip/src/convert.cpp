@@ -63,7 +63,7 @@ namespace rip::cli::convert {
 
 
 	using ResourceMap = std::tuple<
-		resource<ResourceType::ASM, "v1.03",
+		resource<ResourceType::ASM, "1.03",
 			version<"1.03", ucsl::resources::animation_state_machine::v103::AsmData>
 		>,
 		resource<ResourceType::GEDIT, "3",
