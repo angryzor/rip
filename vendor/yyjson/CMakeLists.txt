@@ -1,1 +1,3 @@
-add_subdirectory(yyjson)
+if(NOT TARGET yyjson)
+	add_subdirectory(yyjson)
+endif()
