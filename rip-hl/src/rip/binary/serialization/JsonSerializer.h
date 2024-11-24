@@ -152,6 +152,10 @@ namespace rip::binary {
 				return yyjson_mut_str(serializer.doc, obj);
 			}
 
+			result_type visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
+				return yyjson_mut_str(serializer.doc, "TODO");
+			}
+
 			template<typename O, typename F>
 			result_type visit_enum(opaque_obj& obj, const EnumInfo<O>& info, F f) {
 				yyjson_mut_val* val = f(obj).value;
@@ -246,10 +250,10 @@ namespace rip::binary {
 			yyjson_mut_doc_free(doc);
 		}
 
-		template<template<typename> typename Traversal, typename T>
-		void serialize(T& data) {
-			Traversal<SerializeChunk> operation{ *this };
-			operation(data);
+		template<typename T, typename R>
+		void serialize(T& data, R refl) {
+			ucsl::reflection::traversals::traversal<SerializeChunk> operation{ *this };
+			operation(data, refl);
 			yyjson_write_err err;
 			yyjson_mut_write_file(filename, doc, YYJSON_WRITE_PRETTY_TWO_SPACES, nullptr, &err);
 

@@ -1,5 +1,6 @@
 #include "config.h"
 #include <map>
+#include <util.h>
 
 std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".asm", ResourceType::ASM },
@@ -7,15 +8,10 @@ std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".rfl", ResourceType::RFL },
 	{ ".vat", ResourceType::VAT },
 	{ ".fxcol", ResourceType::FXCOL },
+	{ ".swif", ResourceType::SWIF },
 };
 
-std::map<ResourceType, std::string> extByResourceType{
-	{ ResourceType::ASM, ".asm" },
-	{ ResourceType::GEDIT, ".gedit" },
-	{ ResourceType::RFL, ".rfl" },
-	{ ResourceType::VAT, ".vat" },
-	{ ResourceType::FXCOL, ".fxcol" },
-};
+auto extByResourceType = reverse_map(resourceTypeByExt);
 
 std::string Config::rflClass{};
 

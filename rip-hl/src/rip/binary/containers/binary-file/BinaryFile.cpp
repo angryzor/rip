@@ -167,4 +167,6 @@ namespace rip::binary::containers::binary_file::v2 {
 
 		return addptr(chunk, sizeof(ChunkHeader) + chunk->additionalHeaderSize);
 	}
+
+	BinaryFileSerializer::BinaryFileSerializer(binary_ostream& stream, std::endian endianness) : container{ stream, endianness } {}
 }

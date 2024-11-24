@@ -23,6 +23,7 @@ enum class ResourceType {
 	RFL,
 	VAT,
 	FXCOL,
+	SWIF,
 };
 
 struct Config {

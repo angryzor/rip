@@ -25,6 +25,7 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "rfl", ResourceType::RFL },
 	{ "vat", ResourceType::VAT },
 	{ "fxcol", ResourceType::FXCOL },
+	{ "swif", ResourceType::SWIF },
 };
 
 auto gameMapReverse = reverse_map(gameMap);
@@ -34,7 +35,7 @@ auto resourceTypeMapReverse = reverse_map(resourceTypeMap);
 int main(int argc, char** argv) {
 	CLI::App app{ "Restoration Issue Pocketknife" };
 	argv = app.ensure_utf8(argv);
-
+	
 	Config config{};
 
 	app.add_option("input", config.inputFile, "The input file.")

@@ -181,6 +181,10 @@ namespace rip::binary {
 				return 0;
 			}
 
+			result_type visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
+				return 0;
+			}
+
 			template<typename O, typename F>
 			result_type visit_enum(opaque_obj& obj, const EnumInfo<O>& info, F f) {
 				const char* str = yyjson_get_str(state.currentVal);
@@ -311,8 +315,8 @@ namespace rip::binary {
 			yyjson_doc_free(doc);
 		}
 
-		template<template<typename> typename Traversal, typename T>
-		T* deserialize() {
+		template<typename T, typename R>
+		T* deserialize(R refl) {
 			yyjson_read_err err;
 			doc = yyjson_read_file(filename, 0, nullptr, &err);
 			if (err.code != YYJSON_READ_SUCCESS) {
@@ -321,8 +325,8 @@ namespace rip::binary {
 			}
 
 			T* stub{};
-			Traversal<OperationBase<OperationState<HeapBlockAllocator<GameInterface, opaque_obj>>>> measureOp{ measureState };
-			measureOp.operator()<T>(*stub);
+			ucsl::reflection::traversals::traversal<OperationBase<OperationState<HeapBlockAllocator<GameInterface, opaque_obj>>>> measureOp{ measureState };
+			measureOp.operator()<T>(*stub, refl);
 			measureState.worker.processQueuedBlocks();
 			size_t size = measureState.worker.allocator.sizeRequired;
 
@@ -331,8 +335,8 @@ namespace rip::binary {
 
 			memset(result, 0, size);
 
-			Traversal<OperationBase<OperationState<SequentialMemoryBlockAllocator<opaque_obj>>>> writeOp{ writeState };
-			writeOp.operator()<T>(*(T*)result);
+			ucsl::reflection::traversals::traversal<OperationBase<OperationState<SequentialMemoryBlockAllocator<opaque_obj>>>> writeOp{ writeState };
+			writeOp.operator()<T>(*(T*)result, refl);
 			writeState.worker.processQueuedBlocks();
 
 			return (T*)result;

@@ -2,12 +2,17 @@
 #include <ucsl/rfl/rflclass.h>
 #include <config.h>
 #include "BinaryInputFile.h"
+#include "SWIFInputFile.h"
 #include "JsonInputFile.h"
 
 template<typename TS, typename T>
 InputFile<T>* loadInputFileWithTypes(const Config& config) {
 	switch (config.getInputFormat()) {
-	case Format::BINARY: return new BinaryInputFile<T>{ config };
+	case Format::BINARY:
+		if constexpr (std::is_same_v<T, ucsl::resources::swif::v6::SRS_PROJECT>)
+			return new SWIFInputFile{ config };
+		else
+			return new BinaryInputFile<T>{ config };
 	case Format::JSON: return new JsonInputFile<TS, T>{ config };
 	}
 }

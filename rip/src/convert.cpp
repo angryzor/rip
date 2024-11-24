@@ -7,6 +7,7 @@
 #include <ucsl/resources/rfl/v2.h>
 #include <ucsl/resources/vertex-animation-texture/v1-rangers.h>
 #include <ucsl/resources/vertex-animation-texture/v1-miller.h>
+#include <ucsl/resources/swif/v6.h>
 #include <ucsl-reflection/reflections/resources/asm/v103.h>
 #include <ucsl-reflection/reflections/resources/fxcol/v1.h>
 #include <ucsl-reflection/reflections/resources/object-world/v2.h>
@@ -15,6 +16,10 @@
 #include <ucsl-reflection/reflections/resources/rfl/v2.h>
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-rangers.h>
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-miller.h>
+#include <ucsl-reflection/reflections/resources/swif/v6.h>
+
+static_assert(std::is_same_v<simplerfl::canonical_t<ucsl::resources::animation_state_machine::v103::AsmData>, ucsl::resources::animation_state_machine::v103::reflections::AsmData>);
+
 #include <config.h>
 #include <io/load_input.h>
 #include <io/write_output.h>
@@ -75,6 +80,9 @@ namespace rip::cli::convert {
 		>,
 		resource<ResourceType::FXCOL, "1",
 			version<"1", ucsl::resources::fxcol::v1::FxColData>
+		>,
+		resource<ResourceType::SWIF, "6",
+			version<"6", ucsl::resources::swif::v6::SRS_PROJECT>
 		>
 	>;
 

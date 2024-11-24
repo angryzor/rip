@@ -1,9 +1,11 @@
 #pragma once
 #include <bit>
 #include <map>
+#include <ucsl/magic.h>
+#include <ucsl-reflection/providers/simplerfl.h>
 #include <rip/binary/stream.h>
 #include <rip/util/byteswap.h>
-#include <ucsl/magic.h>
+#include <rip/binary/serialization/ReflectionSerializer.h>
 #include <iostream>
 #include <vector>
 
@@ -115,5 +117,21 @@ namespace rip::binary::containers::binary_file::v2 {
 	public:
 		BinaryFileResolver(void* file);
 		void* getData(unsigned short chunkId);
+	};
+
+	class BinaryFileSerializer {
+		BinaryFileWriter container;
+
+	public:
+		BinaryFileSerializer(binary_ostream& stream, std::endian endianness = std::endian::native);
+
+		template<typename GameInterface, typename T>
+		void serialize(T& data) {
+			auto chunk = container.addDataChunk();
+
+			rip::binary::ReflectionSerializer serializer{ chunk };
+
+			serializer.serialize(data, ucsl::reflection::providers::simplerfl<GameInterface>::template reflect<T>());
+		}
 	};
 }

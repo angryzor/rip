@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <ucsl-reflection/reflections/basic-types.h>
 #include <ucsl-reflection/traversals/types.h>
+#include <ucsl-reflection/traversals/traversal.h>
 #include <ucsl-reflection/opaque.h>
 #include <rip/binary/types.h>
 #include "BlobSerializer.h"
@@ -15,10 +16,20 @@ namespace rip::binary {
 	class ReflectionSerializer {
 		Backend& backend;
 		BlobSerializer<Backend> blobSerializer;
+		std::map<const void*, size_t> knownPtrs{};
 
-		template<typename F>
-		serialized_types::o64_t<opaque_obj> enqueueBlock(size_t bufferSize, size_t alignment, F processFunc) {
-			return blobSerializer.enqueueBlock(bufferSize, alignment, processFunc);
+		template<typename T, typename F>
+		serialized_types::o64_t<T> enqueueBlock(const T* ptr, size_t bufferSize, size_t alignment, F processFunc) {
+			if (ptr == nullptr)
+				return serialized_types::o64_t<T>{};
+
+			auto it = knownPtrs.find(ptr);
+			if (it != knownPtrs.end())
+				return it->second;
+
+			size_t offset = blobSerializer.enqueueBlock(bufferSize, alignment, processFunc);
+			knownPtrs[ptr] = offset;
+			return offset;
 		}
 
 		class SerializeChunk {
@@ -48,9 +59,9 @@ namespace rip::binary {
 				if constexpr (Backend::hasNativeStrings)
 					serializer.backend.write(obj);
 				else
-					serializer.backend.write(obj == nullptr ? serialized_types::o64_t<const char>{} : serializer.enqueueBlock(strlen(obj) + 1, 1, [obj]() {
-					serializer.backend.write(obj);
-				}));
+					serializer.backend.write(serializer.enqueueBlock(obj, strlen(obj) + 1, 1, [this, obj]() {
+						serializer.backend.write<char>(*obj, strlen(obj) + 1);
+					}));
 			}
 
 			int visit_primitive(const char*& obj, const PrimitiveInfo<const char*>& info) {
@@ -61,6 +72,11 @@ namespace rip::binary {
 			int visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
 				write_string(reinterpret_cast<const char*&>(obj));
 				serializer.backend.write(0ull);
+				return 0;
+			}
+
+			int visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
+				serializer.backend.write(obj == nullptr ? serialized_types::o64_t<opaque_obj>{} : serializer.knownPtrs[obj]);
 				return 0;
 			}
 
@@ -76,7 +92,7 @@ namespace rip::binary {
 
 			template<typename F, typename C, typename D, typename A>
 			int visit_array(A& arr, const ArrayInfo& info, C c, D d, F f) {
-				serializer.backend.write(&arr[0] == nullptr ? serialized_types::o64_t<opaque_obj>{} : serializer.enqueueBlock(arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
+				serializer.backend.write(serializer.enqueueBlock(&arr[0], arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
 					A myarr{ arr };
 					for (auto& item : myarr)
 						f(item);
@@ -89,7 +105,7 @@ namespace rip::binary {
 
 			template<typename F, typename C, typename D, typename A>
 			int visit_tarray(A& arr, const ArrayInfo& info, C c, D d, F f) {
-				serializer.backend.write(&arr[0] == nullptr ? serialized_types::o64_t<opaque_obj>{} : serializer.enqueueBlock(arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
+				serializer.backend.write(serializer.enqueueBlock(&arr[0], arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
 					A myarr{ arr };
 					for (auto& item : myarr)
 						f(item);
@@ -101,7 +117,7 @@ namespace rip::binary {
 
 			template<typename F>
 			int visit_pointer(opaque_obj*& obj, const PointerInfo& info, F f) {
-				serializer.backend.write(obj == nullptr ? serialized_types::o64_t<opaque_obj>{} : serializer.enqueueBlock(info.targetSize, info.targetAlignment, [&obj, f]() {
+				serializer.backend.write(serializer.enqueueBlock(obj, info.targetSize, info.targetAlignment, [&obj, f]() {
 					f(*obj);
 				}));
 				return 0;
@@ -170,7 +186,7 @@ namespace rip::binary {
 
 			template<typename F>
 			int visit_root(opaque_obj& obj, const RootInfo& info, F f) {
-				serializer.enqueueBlock(info.size, info.alignment, [&obj, f]() { f(obj); });
+				serializer.enqueueBlock(&obj, info.size, info.alignment, [&obj, f]() { f(obj); });
 				return 0;
 			}
 		};
@@ -179,10 +195,10 @@ namespace rip::binary {
 		ReflectionSerializer(Backend& backend) : backend{ backend }, blobSerializer { backend } {
 		}
 
-		template<template<typename> typename Traversal, typename T>
-		void serialize(T& data) {
-			Traversal<SerializeChunk> operation{ *this };
-			operation(data);
+		template<typename T, typename R>
+		void serialize(T& data, R refl) {
+			ucsl::reflection::traversals::traversal<SerializeChunk> operation{ *this };
+			operation(data, refl);
 			blobSerializer.processQueuedBlocks();
 		}
 	};

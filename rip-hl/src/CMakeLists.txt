@@ -1,6 +1,7 @@
 target_sources(rip-hl
     PRIVATE
         "rip/binary/containers/binary-file/BinaryFile.cpp"
+        "rip/binary/containers/swif/SWIF.cpp"
     PUBLIC FILE_SET HEADERS FILES
         "rip/util/byteswap.h"
 
@@ -10,6 +11,9 @@ target_sources(rip-hl
         "rip/binary/serialization/ReflectionSerializer.h"
         "rip/binary/serialization/JsonSerializer.h"
         "rip/binary/serialization/JsonDeserializer.h"
+
+        "rip/binary/containers/binary-file/BinaryFile.h"
+        "rip/binary/containers/swif/SWIF.h"
         
         "rip/schemas/hedgeset.h"
         "rip/util/memory.h"
