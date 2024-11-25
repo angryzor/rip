@@ -125,13 +125,18 @@ namespace rip::binary::containers::binary_file::v2 {
 	public:
 		BinaryFileSerializer(binary_ostream& stream, std::endian endianness = std::endian::native);
 
-		template<typename GameInterface, typename T>
-		void serialize(T& data) {
+		template<typename T, typename R>
+		void serialize(T& data, R refl) {
 			auto chunk = container.addDataChunk();
 
 			rip::binary::ReflectionSerializer serializer{ chunk };
 
-			serializer.serialize(data, ucsl::reflection::providers::simplerfl<GameInterface>::template reflect<T>());
+			serializer.serialize(data, refl);
+		}
+
+		template<typename GameInterface, typename T>
+		void serialize(T& data) {
+			serialize(data, ucsl::reflection::providers::simplerfl<GameInterface>::template reflect<T>());
 		}
 	};
 }
