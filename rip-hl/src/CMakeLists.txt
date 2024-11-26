@@ -17,4 +17,4 @@ target_sources(rip-hl
         
         "rip/schemas/hedgeset.h"
         "rip/util/memory.h"
-)
+ "rip/schemas/schema.h")
