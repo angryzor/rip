@@ -561,24 +561,24 @@ namespace rip::schemas::hedgeset {
 		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format == HSONFormat::V3, "HSON format must be V3 if type system does not support old array");
 
 		std::string get_object(const GameInterface::GameObjectClass& object) {
-			std::string name = object.name;
+			std::string name = object.GetName();
 
 			if (this->templ.objects.contains(name))
 				return name;
 
 			auto* cat = static_cast<const char*>(object.GetAttributeValue("category"));
-			this->templ.objects.emplace(name, json_reflections::ObjectDef{ object.spawnerDataRflClass ? std::make_optional(this->get_struct(*object.spawnerDataRflClass)) : std::nullopt, cat ? std::make_optional(cat) : std::nullopt });
+			this->templ.objects.emplace(name, json_reflections::ObjectDef{ object.GetSpawnerDataClass() ? std::make_optional(this->get_struct(*object.GetSpawnerDataClass())) : std::nullopt, cat ? std::make_optional(cat) : std::nullopt});
 
 			return name;
 		}
 
 		std::string get_tag(const GameInterface::GOComponentRegistry::GOComponentRegistryItem& component) {
-			std::string name = component.name;
+			std::string name = component.GetName();
 
 			if (this->templ.tags.contains(name))
 				return name;
 
-			this->templ.tags.emplace(name, json_reflections::TagDef{ component.rflClass ? std::make_optional(this->get_struct(*component.rflClass)) : std::nullopt });
+			this->templ.tags.emplace(name, json_reflections::TagDef{ component.GetSpawnerDataClass() ? std::make_optional(this->get_struct(*component.GetSpawnerDataClass())) : std::nullopt });
 
 			return name;
 		}
