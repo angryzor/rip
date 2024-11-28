@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
-project(rip VERSION 0.0.3
-                 DESCRIPTION "Sonic Team Formats"
+project(rip VERSION 1.0.0
+                 DESCRIPTION "Restoration Issue Pocketknife"
                  LANGUAGES CXX)
 
 add_subdirectory(vendor EXCLUDE_FROM_ALL)
