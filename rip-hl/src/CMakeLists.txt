@@ -4,17 +4,17 @@ target_sources(rip-hl
         "rip/binary/containers/swif/SWIF.cpp"
     PUBLIC FILE_SET HEADERS FILES
         "rip/util/byteswap.h"
-
+        "rip/util/memory.h"
         "rip/binary/stream.h"
+        "rip/binary/types.h"
+        "rip/binary/containers/binary-file/BinaryFile.h"
+        "rip/binary/containers/swif/SWIF.h"
         "rip/binary/serialization/BlobWorker.h"
         "rip/binary/serialization/BlobSerializer.h"
         "rip/binary/serialization/ReflectionSerializer.h"
         "rip/binary/serialization/JsonSerializer.h"
         "rip/binary/serialization/JsonDeserializer.h"
-
         "rip/binary/containers/binary-file/BinaryFile.h"
         "rip/binary/containers/swif/SWIF.h"
-        
         "rip/schemas/hedgeset.h"
-        "rip/util/memory.h"
- "rip/schemas/schema.h")
+ )

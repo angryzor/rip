@@ -135,7 +135,7 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::objectids::ObjectIdV1& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV1>& info) {
-				return yyjson_mut_uint(serializer.doc, obj);
+				return yyjson_mut_uint(serializer.doc, obj.id);
 			}
 
 			result_type visit_primitive(ucsl::objectids::ObjectIdV2& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV2>& info) {
@@ -156,8 +156,8 @@ namespace rip::binary {
 				return yyjson_mut_str(serializer.doc, "TODO");
 			}
 
-			template<typename O, typename F>
-			result_type visit_enum(opaque_obj& obj, const EnumInfo<O>& info, F f) {
+			template<typename T, typename O>
+			result_type visit_enum(T& obj, const EnumInfo<O>& info) {
 				yyjson_mut_val* val = f(obj).value;
 				auto v = yyjson_mut_get_sint(val);
 				for (auto& option : info.options)
@@ -166,9 +166,9 @@ namespace rip::binary {
 				return nullptr;
 			}
 
-			template<typename O, typename F>
-			result_type visit_flags(opaque_obj& obj, const FlagsInfo<O>& info, F f) {
-				return f(obj);
+			template<typename T, typename O>
+			result_type visit_flags(T& obj, const FlagsInfo<O>& info) {
+				return visit_primitive(obj, PrimitiveInfo<T>{});
 			}
 
 			template<typename F, typename C, typename D, typename A>

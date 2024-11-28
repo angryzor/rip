@@ -69,7 +69,7 @@ namespace rip::schemas::hedgeset {
 		};
 
 		struct StructDef {
-			std::optional<std::string> parent{};
+			std::optional<std::string> parent{ std::nullopt };
 			std::optional<std::vector<MemberDef>> fields{};
 		};
 
@@ -79,16 +79,16 @@ namespace rip::schemas::hedgeset {
 		};
 
 		struct TagDef {
-			rfl::Rename<"struct", std::string> structName{};
+			rfl::Rename<"struct", std::optional<std::string>> structName{};
 		};
 
 		struct Template {
 			unsigned int version{};
 			std::string format{};
-			rfl::Object<EnumDef> enums{};
-			rfl::Object<StructDef> structs{};
-			rfl::Object<ObjectDef> objects{};
-			rfl::Object<TagDef> tags{};
+			std::map<std::string, EnumDef> enums{};
+			std::map<std::string, StructDef> structs{};
+			std::map<std::string, ObjectDef> objects{};
+			std::map<std::string, TagDef> tags{};
 		};
 	}
 
@@ -112,7 +112,7 @@ namespace rip::schemas::hedgeset {
 			MemberType subtype{ MemberType::VOID };
 			std::optional<std::shared_ptr<StandaloneRflSystem::RflClass>> structt{ std::nullopt };
 			std::optional<std::shared_ptr<StandaloneRflSystem::RflClassEnum>> enumm{ std::nullopt };
-			std::optional<std::vector<StandaloneRflSystem::RflClassEnumMember>> flagValues{ std::nullopt };
+			std::optional<std::vector<StandaloneRflSystem::RflClassEnumMember>> flag_values{ std::nullopt };
 		};
 
 		static MemberType get_primitive_type(const std::string& type) {
@@ -140,26 +140,26 @@ namespace rip::schemas::hedgeset {
 		}
 
 		static std::vector<StandaloneRflSystem::RflClassEnumMember> get_flag_values(const json_reflections::MemberDef& member) {
-			std::vector<StandaloneRflSystem::RflClassEnumMember> flagValues{};
+			std::vector<StandaloneRflSystem::RflClassEnumMember> flag_values{};
 
 			for (auto& [name, enumValueDef] : member.flags.value())
-				flagValues.push_back(StandaloneRflSystem::RflClassEnumMember{ enumValueDef.value, name, enumValueDef.descriptions.has_value() ? enumValueDef.descriptions.value().get("ja").value_or("") : "" });
+				flag_values.push_back(StandaloneRflSystem::RflClassEnumMember{ enumValueDef.value, name, enumValueDef.descriptions.has_value() ? enumValueDef.descriptions.value().get("ja").value_or("") : "" });
 
-			return std::move(flagValues);
+			return flag_values;
 		}
 
 		LoadTypeConversionResult get_type(const json_reflections::MemberDef& member, std::map<std::string, std::shared_ptr<StandaloneRflSystem::RflClassEnum>>& enums) {
-			if (templ.structs.get(member.type))
-				return { .type = MemberType::STRUCT, .structt = load_rfl_class(member.type, templ.structs.get(member.type).value()) };
+			if (templ.structs.contains(member.type))
+				return { .type = MemberType::STRUCT, .structt = load_rfl_class(member.type) };
 
-			if (templ.enums.get(member.type)) {
-				auto e = templ.enums.get(member.type).value();
+			if (templ.enums.contains(member.type)) {
+				auto e = templ.enums.at(member.type);
 
-				return { .type = MemberType::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(member.type, e, enums) };
+				return { .type = MemberType::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(member.type, enums) };
 			}
 
 			if (member.type == "flags")
-				return { .type = MemberType::FLAGS, .subtype = get_primitive_type(member.subtype.value()), .flagValues = get_flag_values(member) };
+				return { .type = MemberType::FLAGS, .subtype = get_primitive_type(member.subtype.value()), .flag_values = get_flag_values(member) };
 
 			if (member.type != "array")
 				return { .type = get_primitive_type(member.type) };
@@ -167,32 +167,34 @@ namespace rip::schemas::hedgeset {
 			auto subtype = member.subtype.value();
 
 			if (member.array_size.has_value() && member.array_size.value() > 0) {
-				if (templ.structs.get(subtype))
-					return { .type = MemberType::STRUCT, .structt = load_rfl_class(subtype, templ.structs.get(subtype).value()) };
+				if (templ.structs.contains(subtype))
+					return { .type = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 
-				if (templ.enums.get(subtype)) {
-					auto e = templ.enums.get(subtype).value();
+				if (templ.enums.contains(subtype)) {
+					auto e = templ.enums.at(subtype);
 
-					return { .type = MemberType::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(subtype, e, enums) };
+					return { .type = MemberType::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(subtype, enums) };
 				}
 
 				return { .type = get_primitive_type(subtype) };
 			}
 
 			if (templ.format == "gedit_v3") {
-				if (templ.structs.get(subtype))
-					return { .type = MemberType::OLD_ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype, templ.structs.get(subtype).value()) };
+				if (templ.structs.contains(subtype))
+					return { .type = MemberType::OLD_ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 
 				return { .type = MemberType::OLD_ARRAY, .subtype = get_primitive_type(subtype) };
 			}
 
-			if (templ.structs.get(subtype))
-				return { .type = MemberType::ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype, templ.structs.get(subtype).value()) };
+			if (templ.structs.contains(subtype))
+				return { .type = MemberType::ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 
 			return { .type = MemberType::ARRAY, .subtype = get_primitive_type(subtype) };
 		}
 
-		std::shared_ptr<StandaloneRflSystem::RflClassEnum> load_enum(const std::string& name, const json_reflections::EnumDef& enumDef, std::map<std::string, std::shared_ptr<StandaloneRflSystem::RflClassEnum>>& enums) {
+		std::shared_ptr<StandaloneRflSystem::RflClassEnum> load_enum(const std::string& name, std::map<std::string, std::shared_ptr<StandaloneRflSystem::RflClassEnum>>& enums) {
+			const json_reflections::EnumDef& enumDef = templ.enums.at(name);
+
 			auto [resIt, resSuccess] = enums.emplace(name, std::make_shared<StandaloneRflSystem::RflClassEnum>(name, std::vector<typename StandaloneRflSystem::RflClassEnumMember>{}));
 			auto [resName, res] = *resIt;
 
@@ -206,9 +208,11 @@ namespace rip::schemas::hedgeset {
 			return enums[name];
 		}
 
-		std::shared_ptr<StandaloneRflSystem::RflClass> load_rfl_class(const std::string& name, const json_reflections::StructDef& structDef) {
+		std::shared_ptr<StandaloneRflSystem::RflClass> load_rfl_class(const std::string& name) {
 			if (schema.classes.contains(name))
 				return schema.classes[name];
+
+			const json_reflections::StructDef& structDef = templ.structs.at(name);
 
 			auto [resIt, resSuccess] = schema.classes.emplace(name, std::make_shared<StandaloneRflSystem::RflClass>(name, std::nullopt, 0, std::vector<std::shared_ptr<StandaloneRflSystem::RflClassEnum>>{}, std::vector<std::shared_ptr<StandaloneRflSystem::RflClassMember>>{}, 0));
 			auto [resName, res] = *resIt;
@@ -221,7 +225,7 @@ namespace rip::schemas::hedgeset {
 			std::optional<std::shared_ptr<StandaloneRflSystem::RflClass>> parent{};
 
 			if (structDef.parent.has_value()) {
-				parent = templ.structs.get(structDef.parent.value()).transform([&](const auto& e) -> std::optional<std::shared_ptr<StandaloneRflSystem::RflClass>> { return load_rfl_class(structDef.parent.value(), e, templ); }).value();
+				parent = load_rfl_class(structDef.parent.value());
 				offset = parent.value()->GetSize();
 			}
 
@@ -235,7 +239,7 @@ namespace rip::schemas::hedgeset {
 						memberDef.name,
 						convertedTypes.structt,
 						convertedTypes.enumm,
-						std::move(convertedTypes.flagValues),
+						std::move(convertedTypes.flag_values),
 						convertedTypes.type,
 						convertedTypes.subtype,
 						(memberDef.array_size.has_value() && memberDef.array_size.value() > 0) ? memberDef.array_size.value() : 0,
@@ -255,20 +259,24 @@ namespace rip::schemas::hedgeset {
 			return schema.classes[name];
 		}
 
-		Schema::ObjectInfo load_object(const std::string& name, const json_reflections::ObjectDef& objectDef) {
+		Schema::ObjectInfo load_object(const std::string& name) {
 			if (schema.objects.contains(name))
 				return schema.objects[name];
 
-			auto [resIt, resSuccess] = schema.objects.emplace(name, objectDef.category, objectDef.structName);
+			const json_reflections::ObjectDef& objectDef = templ.objects.at(name);
+
+			auto [resIt, resSuccess] = schema.objects.emplace(name, Schema::ObjectInfo{ objectDef.structName.value().has_value() ? std::make_optional(load_rfl_class(objectDef.structName.value().value())) : std::nullopt, objectDef.category });
 
 			return resIt->second;
 		}
 
-		Schema::ComponentInfo load_tag(const std::string& name, const json_reflections::TagDef& tagDef) {
+		Schema::ComponentInfo load_tag(const std::string& name) {
 			if (schema.components.contains(name))
 				return schema.components[name];
 
-			auto [resIt, resSuccess] = schema.components.emplace(name, tagDef.structName);
+			const json_reflections::TagDef& tagDef = templ.tags.at(name);
+
+			auto [resIt, resSuccess] = schema.components.emplace(name, Schema::ComponentInfo{ tagDef.structName.value().has_value() ? std::make_optional(load_rfl_class(tagDef.structName.value().value())) : std::nullopt });
 
 			return resIt->second;
 		}
@@ -279,13 +287,13 @@ namespace rip::schemas::hedgeset {
 			//	load_enum(name, enumDef);
 
 			for (auto& [name, structDef] : templ.structs)
-				load_rfl_class(name, structDef);
+				load_rfl_class(name);
 
 			for (auto& [name, objectDef] : templ.objects)
-				load_object(name, objectDef);
+				load_object(name);
 
 			for (auto& [name, tagDef] : templ.tags)
-				load_tag(name, tagDef);
+				load_tag(name);
 		}
 
 		const Schema& get_schema() const {
@@ -295,11 +303,13 @@ namespace rip::schemas::hedgeset {
 
 	template<typename GameInterface>
 	class template_builder {
+	protected:
 		json_reflections::Template templ{};
 
 		struct PrimitiveTypeConversionResult {
 			std::string type{};
 			json_reflections::RangeProps range{};
+			std::optional<unsigned int> alignment{ std::nullopt };
 		};
 
 		struct TypeConversionResult {
@@ -307,13 +317,14 @@ namespace rip::schemas::hedgeset {
 			std::optional<std::string> subtype{ std::nullopt };
 			std::optional<unsigned int> alignment{ std::nullopt };
 			std::optional<unsigned int> array_size{ std::nullopt };
-			std::optional<std::vector<json_reflections::EnumValueDef>> flagValues{ std::nullopt };
+			std::optional<rfl::Object<json_reflections::EnumValueDef>> flag_values{ std::nullopt };
+			json_reflections::RangeProps range{};
 		};
 
 		using MemberType = typename GameInterface::RflSystem::RflClassMember::Type;
 
 		bool is_arraylike(MemberType type) {
-			if constexpr (GameInterface::RflSystem::TypeSystem::supports_old_array)
+			if constexpr (GameInterface::RflSystem::TypeSet::supports_old_array)
 				return type == MemberType::OLD_ARRAY || type == MemberType::ARRAY;
 			else
 				return type == MemberType::ARRAY;
@@ -324,25 +335,25 @@ namespace rip::schemas::hedgeset {
 			return range > std::numeric_limits<T>::lowest() / 2 && range < std::numeric_limits<T>::max() / 2;
 		}
 
-		template<typename Range> std::optional<range_value_t<Range>> useful_range_value(const range_value_t<Range>& range) { return { range }; }
-		template<> std::optional<range_value_t<RangeFloat>> useful_range_value<RangeFloat>(const range_value_t<RangeFloat>& range) {
+		template<typename Range> std::optional<json_reflections::rfl_range_rep_t<Range>> get_range_value(const range_value_t<Range>& range) { return { range }; }
+		template<> std::optional<json_reflections::rfl_range_rep_t<RangeFloat>> get_range_value<RangeFloat>(const range_value_t<RangeFloat>& range) {
 			return is_useful_range_value(range)
-				? std::make_optional<range_value_t<RangeFloat>>(range)
+				? std::make_optional<json_reflections::rfl_range_rep_t<RangeFloat>>(range)
 				: std::nullopt;
 		}
-		template<> std::optional<range_value_t<RangeVector2>> useful_range_value<RangeVector2>(const range_value_t<RangeVector2>& range) {
-			return is_useful_range_value(range.x()) && is_useful_range_value(range.y())
-				? std::make_optional<range_value_t<RangeVector2>>({ range.x(), range.y() })
+		template<> std::optional<json_reflections::rfl_range_rep_t<RangeVector2>> get_range_value<RangeVector2>(const range_value_t<RangeVector2>& range) {
+			return is_useful_range_value(range.x) && is_useful_range_value(range.y)
+				? std::make_optional<json_reflections::rfl_range_rep_t<RangeVector2>>({ range.x, range.y })
 				: std::nullopt;
 		}
-		template<> std::optional<range_value_t<RangeVector3>> useful_range_value<RangeVector3>(const range_value_t<RangeVector3>& range) {
-			return is_useful_range_value(range.x()) && is_useful_range_value(range.y()) && is_useful_range_value(range.z())
-				? std::make_optional<range_value_t<RangeVector3>>({ range.x(), range.y(), range.z() })
+		template<> std::optional<json_reflections::rfl_range_rep_t<RangeVector3>> get_range_value<RangeVector3>(const range_value_t<RangeVector3>& range) {
+			return is_useful_range_value(range.x) && is_useful_range_value(range.y) && is_useful_range_value(range.z)
+				? std::make_optional<json_reflections::rfl_range_rep_t<RangeVector3>>({ range.x, range.y, range.z })
 				: std::nullopt;
 		}
-		template<> std::optional<range_value_t<RangeVector4>> useful_range_value<RangeVector4>(const range_value_t<RangeVector4>& range) {
-			return is_useful_range_value(range.x()) && is_useful_range_value(range.y()) && is_useful_range_value(range.z()) && is_useful_range_value(range.w())
-				? std::make_optional<range_value_t<RangeVector4>>({ range.x(), range.y(), range.z(), range.w() })
+		template<> std::optional<json_reflections::rfl_range_rep_t<RangeVector4>> get_range_value<RangeVector4>(const range_value_t<RangeVector4>& range) {
+			return is_useful_range_value(range.x) && is_useful_range_value(range.y) && is_useful_range_value(range.z) && is_useful_range_value(range.w)
+				? std::make_optional<json_reflections::rfl_range_rep_t<RangeVector4>>({ range.x, range.y, range.z, range.w })
 				: std::nullopt;
 		}
 
@@ -350,7 +361,7 @@ namespace rip::schemas::hedgeset {
 		json_reflections::RangeProps generate_range(const typename GameInterface::RflSystem::RflClassMember& member) {
 			auto* range = member.GetRange<Range>();
 
-			return range == nullptr ? json_reflections::RangeProps{} : json_reflections::RangeProps{ useful_range_value(range->min), useful_range_value(range->max), useful_range_value(range->step) };
+			return range == nullptr ? json_reflections::RangeProps{} : json_reflections::RangeProps{ get_range_value<Range>(range->min), get_range_value<Range>(range->max), get_range_value<Range>(range->step) };
 		}
 
 		PrimitiveTypeConversionResult get_primitive_type(const typename GameInterface::RflSystem::RflClassMember& member, MemberType type) {
@@ -374,11 +385,12 @@ namespace rip::schemas::hedgeset {
 			if (type == MemberType::COLOR_FLOAT) return { .type = "colorf" };
 			if (type == MemberType::STRING) return { .type = "string" };
 			if (type == MemberType::OBJECT_ID) return { .type = "object_reference" };
-			return assert(false && "unknown type"); return { .type = "unknown" };
+			assert(false && "unknown type");
+			return { .type = "unknown" };
 		}
 
 		TypeConversionResult get_type(const typename GameInterface::RflSystem::RflClassMember& member, const std::string& cur_namespace) {
-			size_t array_size = member.GetArrayLength();
+			unsigned int array_size = member.GetArrayLength();
 			MemberType type = member.GetType();
 			MemberType subtype = member.GetSubType();
 
@@ -386,20 +398,20 @@ namespace rip::schemas::hedgeset {
 				assert(!is_arraylike(type) && "C arrays of arrays cannot be represented in HedgeSet templates");
 
 				switch (type) {
-				case MemberType::STRUCT: return { .type = "array", .subtype = get_struct(member.GetClass()), .array_size = array_size };
-				case MemberType::ENUM: return { .type = "array", .subtype = get_enum(member.GetEnum(), cur_namespace, subtype), .array_size = array_size };
-				case MemberType::FLAGS: return { .type = "array", .subtype = get_primitive_type(member, subtype).type, .array_size = array_size, .flag_values = generate_enum_values(member.GetFlagValues()) };
+				case MemberType::STRUCT: return { .type = "array", .subtype = get_struct(*member.GetClass()), .array_size = array_size };
+				case MemberType::ENUM: return { .type = "array", .subtype = get_enum(*member.GetEnum(), cur_namespace, subtype), .array_size = array_size };
+				case MemberType::FLAGS: return { .type = "array", .subtype = get_primitive_type(member, subtype).type, .array_size = array_size, .flag_values = member.GetFlagValues() ? std::make_optional(generate_enum_values(*member.GetFlagValues())) : std::nullopt };
 				default: {
 					auto prim = get_primitive_type(member, type);
 
-					return { .type = "array", .subtype = prim.type, .array_size = array_size, .range = prim.range };
+					return { .type = "array", .subtype = prim.type, .alignment = prim.alignment, .array_size = array_size, .range = prim.range };
 				}
 				}
 			}
 
 			MemberType array_type{ MemberType::ARRAY };
 
-			if constexpr (GameInterface::RflSystem::TypeSystem::supports_old_array) {
+			if constexpr (GameInterface::RflSystem::TypeSet::supports_old_array) {
 				assert(type != MemberType::ARRAY && "type ARRAY cannot be represented in HedgeSet templates if the type system supports OLD_ARRAY");
 
 				array_type = MemberType::OLD_ARRAY;
@@ -407,19 +419,23 @@ namespace rip::schemas::hedgeset {
 
 			if (type == array_type) {
 				switch (subtype) {
-				case MemberType::STRUCT: return { .type = "array", .subtype = get_struct(member.GetClass()) };
-				default: return { .type = "array", .subtype = get_primitive_type(member, subtype) };
+				case MemberType::STRUCT: return { .type = "array", .subtype = get_struct(*member.GetClass()) };
+				default: {
+					auto prim = get_primitive_type(member, subtype);
+
+					return { .type = "array", .subtype = prim.type, .alignment = prim.alignment, .range = prim.range };
+				}
 				}
 			}
 
 			switch (type) {
-			case MemberType::STRUCT: return { .type = get_struct(member.GetClass()) };
-			case MemberType::ENUM: return { .type = get_enum(member.GetEnum(), cur_namespace, subtype) };
-			case MemberType::FLAGS: return { .type = get_primitive_type(member, subtype).type, .flag_values = generate_enum_values(member.GetFlagValues()) };
+			case MemberType::STRUCT: return { .type = get_struct(*member.GetClass()) };
+			case MemberType::ENUM: return { .type = get_enum(*member.GetEnum(), cur_namespace, subtype) };
+			case MemberType::FLAGS: return { .type = get_primitive_type(member, subtype).type, .flag_values = member.GetFlagValues() ? std::make_optional(generate_enum_values(*member.GetFlagValues())) : std::nullopt };
 			default: {
 				auto prim = get_primitive_type(member, type);
 
-				return { .type = get_primitive_type(member, type), .range = prim.range };
+				return { .type = prim.type, .alignment = prim.alignment, .range = prim.range };
 			}
 			}
 		}
@@ -430,7 +446,7 @@ namespace rip::schemas::hedgeset {
 
 			rfl::Object<std::string> descs{};
 			descs["ja"] = jaText;
-			return std::move(descs);
+			return descs;
 		}
 
 		json_reflections::EnumValueDef generate_enum_value(const typename GameInterface::RflSystem::RflClassEnumMember& value) {
@@ -438,30 +454,25 @@ namespace rip::schemas::hedgeset {
 		}
 
 		template<typename R>
-		std::vector<json_reflections::EnumValueDef> generate_enum_values(const R& values) {
-			std::vector<json_reflections::EnumValueDef> res{};
+		rfl::Object<json_reflections::EnumValueDef> generate_enum_values(const R& values) {
+			rfl::Object<json_reflections::EnumValueDef> res{};
 
 			for (auto& value : values)
-				values[value.GetEnglishName()] = generate_enum_value(value);
+				res[value.GetEnglishName()] = generate_enum_value(value);
 
-			return std::move(res);
-		}
-
-		template<typename T>
-		json_reflections::EnumDef generate_enum_t(const GameInterface::RflSystem::RflClassEnum& enumClass) {
-			return { .type = hson_type<T>::type, .values = generate_enum_values(enumClass.GetValues()) };
+			return res;
 		}
 
 		json_reflections::EnumDef generate_enum(const GameInterface::RflSystem::RflClassEnum& enumClass, const std::string& name, MemberType type) {
 			switch (type) {
-			case MemberType::TYPE_SINT8: return generate_enum_t<int8_t>(enumClass);
-			case MemberType::TYPE_UINT8: return generate_enum_t<uint8_t>(enumClass);
-			case MemberType::TYPE_SINT16: return generate_enum_t<int16_t>(enumClass);
-			case MemberType::TYPE_UINT16: return generate_enum_t<uint16_t>(enumClass);
-			case MemberType::TYPE_SINT32: return generate_enum_t<int32_t>(enumClass);
-			case MemberType::TYPE_UINT32: return generate_enum_t<uint32_t>(enumClass);
-			case MemberType::TYPE_SINT64: return generate_enum_t<int64_t>(enumClass);
-			case MemberType::TYPE_UINT64: return generate_enum_t<uint64_t>(enumClass);
+			case MemberType::SINT8: return { .type = "int8", .values = generate_enum_values(enumClass.GetValues()) };
+			case MemberType::UINT8: return { .type = "uint8", .values = generate_enum_values(enumClass.GetValues()) };
+			case MemberType::SINT16: return { .type = "int16", .values = generate_enum_values(enumClass.GetValues()) };
+			case MemberType::UINT16: return { .type = "uint16", .values = generate_enum_values(enumClass.GetValues()) };
+			case MemberType::SINT32: return { .type = "int32", .values = generate_enum_values(enumClass.GetValues()) };
+			case MemberType::UINT32: return { .type = "uint32", .values = generate_enum_values(enumClass.GetValues()) };
+			case MemberType::SINT64: return { .type = "int64", .values = generate_enum_values(enumClass.GetValues()) };
+			case MemberType::UINT64: return { .type = "uint64", .values = generate_enum_values(enumClass.GetValues()) };
 			default: assert(false && "invalid member type"); return {};
 			}
 		}
@@ -470,24 +481,25 @@ namespace rip::schemas::hedgeset {
 			std::string namespaced_name = cur_namespace + enumClass.GetName();
 
 			if (templ.enums.contains(namespaced_name))
-				return std::move(namespaced_name);
+				return namespaced_name;
 
 			templ.enums[namespaced_name] = generate_enum(enumClass, namespaced_name, type);
 
-			return std::move(namespaced_name);
+			return namespaced_name;
 		}
 
 		json_reflections::MemberDef generate_member(const GameInterface::RflSystem::RflClassMember& member, const std::string& cur_namespace) {
 			auto type = get_type(member, cur_namespace);
 
 			return {
-				.name = member->GetName(),
+				.name = member.GetName(),
 				.type = type.type,
 				.subtype = type.subtype,
-				.flags = type.flagValues,
+				.flags = type.flag_values,
+				.array_size = type.array_size,
 				.alignment = type.alignment,
-				.caption = generate_descs(member->GetCaption()),
 				.range = type.range,
+				.descriptions = generate_descs(member.GetCaption()),
 			};
 		}
 
@@ -504,57 +516,38 @@ namespace rip::schemas::hedgeset {
 		}
 
 		std::string get_struct(const GameInterface::RflSystem::RflClass& rflClass) {
-			std::string name = rflClass->GetName();
+			std::string name = rflClass.GetName();
 
 			if (templ.structs.contains(name))
-				return std::move(name);
+				return name;
 
-			auto [resIt, resSuccess] = templ.structs.emplace(name);
+			auto [resIt, resSuccess] = templ.structs.emplace(name, json_reflections::StructDef{});
 			auto& res = resIt->second;
 
-			auto cur_namespace = name + std::string{ "::" };
 			auto* parent = rflClass.GetParent();
+			auto cur_namespace = name + std::string{ "::" };
 
 			if (parent)
-				res.parent = std::move(get_struct(parent));
+				res.parent = get_struct(*parent);
 
+			std::vector<json_reflections::MemberDef> fields{};
 			for (auto& member : rflClass.GetMembers()) {
 				auto field = generate_member(member, cur_namespace);
 
-				if (parent && has_member(field.name, parent))
+				if (parent && has_member(field.name, *parent))
 					field.name = cur_namespace + field.name;
 
-				res.fields.push_back(std::move(field));
+				fields.push_back(std::move(field));
 			}
 
-			return std::move(name);
-		}
+			res.fields = std::move(fields);
 
-		std::string get_object(const GameInterface::GameObjectClass& object) {
-			std::string name = component.name;
-
-			if (templ.objects.contains(name))
-				return std::move(name);
-
-			templ.objects.emplace(object->name, get_struct(object->spawnerDataRflClass), static_cast<const char*>(object->GetAttributeValue("category")));
-
-			return std::move(name);
-		}
-
-		std::string get_tag(const GameInterface::GOComponentInformation& component) {
-			std::string name = component.name;
-
-			if (templ.tags.contains(name))
-				return std::move(name);
-
-			templ.tags.emplace(component->name, get_struct(component->rflClass));
-			
-			return std::move(name);
+			return name;
 		}
 
 	public:
 		const Template& get_template() {
-			return template;
+			return templ;
 		}
 
 		void add_class(const GameInterface::RflSystem::RflClass& rfl_class) {
@@ -564,23 +557,49 @@ namespace rip::schemas::hedgeset {
 
 	template<typename GameInterface, HSONFormat format>
 	class hson_template_builder : public template_builder<GameInterface> {
-		static_assert(GameInterface::supports_old_array || format == HSONFormat::V3, "HSON format must be V3 if type system does not support old array");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format == HSONFormat::V3, "HSON format must be V3 if type system does not support old array");
 
-	public:
-		hson_template_builder() : templ{ .version = 1, .format = format == HSONFormat::V3 ? "gedit_v3" : "gedit_v2" } {}
+		std::string get_object(const GameInterface::GameObjectClass& object) {
+			std::string name = object.name;
 
-		void add_object(const GameInterface::GameObjectClass& object) {
-			get_object(object);
+			if (this->templ.objects.contains(name))
+				return name;
+
+			auto* cat = static_cast<const char*>(object.GetAttributeValue("category"));
+			this->templ.objects.emplace(name, json_reflections::ObjectDef{ object.spawnerDataRflClass ? std::make_optional(this->get_struct(*object.spawnerDataRflClass)) : std::nullopt, cat ? std::make_optional(cat) : std::nullopt });
+
+			return name;
 		}
 
-		void add_component(const GameInterface::GOComponentInformation& component) {
-			get_tag(component);
+		std::string get_tag(const GameInterface::GOComponentRegistry::GOComponentRegistryItem& component) {
+			std::string name = component.name;
+
+			if (this->templ.tags.contains(name))
+				return name;
+
+			this->templ.tags.emplace(name, json_reflections::TagDef{ component.rflClass ? std::make_optional(this->get_struct(*component.rflClass)) : std::nullopt });
+
+			return name;
+		}
+
+	public:
+		hson_template_builder() {
+			this->templ.version = 1;
+			this->templ.format = format == HSONFormat::V3 ? "gedit_v3" : "gedit_v2";
+		}
+
+		void add_object(const GameInterface::GameObjectClass& object) {
+			this->get_object(object);
+		}
+
+		void add_component(const GameInterface::GOComponentRegistry::GOComponentRegistryItem& component) {
+			this->get_tag(component);
 		}
 
 		void add_all() {
 			auto* gos = GameInterface::GameObjectSystem::GetInstance();
 
-			for (auto* object : gos->gameObjectRegistry->GetObjects())
+			for (auto* object : gos->gameObjectRegistry->GetGameObjectClasses())
 				add_object(*object);
 
 			for (auto* component : gos->goComponentRegistry->GetComponents())
@@ -591,11 +610,14 @@ namespace rip::schemas::hedgeset {
 	template<typename GameInterface>
 	class rfl_template_builder : public template_builder<GameInterface> {
 	public:
-		rfl_template_builder() : templ{ .version = 1, .format = "rfl" } {}
+		rfl_template_builder() {
+			this->templ.version = 1;
+			this->templ.format = "rfl";
+		}
 
 		void add_all() {
-			for (auto* rfl_class : GameInterface::RflClassNameRegistry::GetInstance()->GetClasses())
-				add_class(*rfl_class);
+			for (auto* item : GameInterface::RflClassNameRegistry::GetInstance()->GetItems())
+				this->add_class(*item);
 		}
 	};
 

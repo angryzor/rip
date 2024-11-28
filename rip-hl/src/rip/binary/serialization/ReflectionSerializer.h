@@ -80,14 +80,14 @@ namespace rip::binary {
 				return 0;
 			}
 
-			template<typename O, typename F>
-			int visit_enum(opaque_obj& obj, const EnumInfo<O>& info, F f) {
-				return f(obj);
+			template<typename T, typename O>
+			int visit_enum(T& obj, const EnumInfo<O>& info) {
+				return visit_primitive(obj, PrimitiveInfo<T>{});
 			}
 
-			template<typename O, typename F>
-			int visit_flags(opaque_obj& obj, const FlagsInfo<O>& info, F f) {
-				return f(obj);
+			template<typename T, typename O>
+			int visit_flags(T& obj, const FlagsInfo<O>& info) {
+				return visit_primitive(obj, PrimitiveInfo<T>{});
 			}
 
 			template<typename F, typename C, typename D, typename A>

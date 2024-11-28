@@ -151,7 +151,7 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::objectids::ObjectIdV1& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV1>& info) {
-				obj = static_cast<unsigned int>(yyjson_get_uint(state.currentVal));
+				obj.id = static_cast<unsigned int>(yyjson_get_uint(state.currentVal));
 				return 0;
 			}
 
@@ -185,27 +185,22 @@ namespace rip::binary {
 				return 0;
 			}
 
-			template<typename O, typename F>
-			result_type visit_enum(opaque_obj& obj, const EnumInfo<O>& info, F f) {
+			template<typename T, typename O>
+			result_type visit_enum(T& obj, const EnumInfo<O>& info) {
 				const char* str = yyjson_get_str(state.currentVal);
 				for (auto& option : info.options) {
 					if (!strcmp(option.GetEnglishName(), str)) {
-						yyjson_mut_doc* mdoc = yyjson_mut_doc_new(nullptr);
-						yyjson_mut_val* mval = yyjson_mut_sint(mdoc, option.GetIndex());
-						yyjson_doc* tmpdoc = yyjson_mut_val_imut_copy(mval, nullptr);
-						with_val(yyjson_doc_get_root(tmpdoc), [&]() { return f(obj); });
-						yyjson_doc_free(tmpdoc);
-						yyjson_mut_doc_free(mdoc);
-						return 0;
+						T val = static_cast<T>(option.GetIndex());
+						return visit_primitive(val, PrimitiveInfo<T>{});
 					}
 				}
 				assert("unhandled enum");
 				return 0;
 			}
 
-			template<typename O, typename F>
-			result_type visit_flags(opaque_obj& obj, const FlagsInfo<O>& info, F f) {
-				return f(obj);
+			template<typename T, typename O>
+			result_type visit_flags(T& obj, const FlagsInfo<O>& info) {
+				return visit_primitive(obj, PrimitiveInfo<T>{});
 			}
 
 			template<typename F, typename C, typename D, typename A>
