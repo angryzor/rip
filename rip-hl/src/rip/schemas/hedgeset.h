@@ -52,9 +52,9 @@ namespace rip::schemas::hedgeset {
 		>;
 
 		struct RangeProps {
-			std::optional<Ranges> min_range{};
-			std::optional<Ranges> max_range{};
-			std::optional<Ranges> step{};
+			rfl::SkipDeserialization<std::optional<Ranges>> min_range{};
+			rfl::SkipDeserialization<std::optional<Ranges>> max_range{};
+			rfl::SkipDeserialization<std::optional<Ranges>> step{};
 		};
 
 		struct MemberDef {
@@ -153,7 +153,7 @@ namespace rip::schemas::hedgeset {
 				return { .type = MemberType::STRUCT, .structt = load_rfl_class(member.type) };
 
 			if (templ.enums.contains(member.type)) {
-				auto e = templ.enums.at(member.type);
+				auto& e = templ.enums.at(member.type);
 
 				return { .type = MemberType::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(member.type, enums) };
 			}
@@ -164,14 +164,14 @@ namespace rip::schemas::hedgeset {
 			if (member.type != "array")
 				return { .type = get_primitive_type(member.type) };
 
-			auto subtype = member.subtype.value();
+			auto& subtype = member.subtype.value();
 
 			if (member.array_size.has_value() && member.array_size.value() > 0) {
 				if (templ.structs.contains(subtype))
 					return { .type = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 
 				if (templ.enums.contains(subtype)) {
-					auto e = templ.enums.at(subtype);
+					auto& e = templ.enums.at(subtype);
 
 					return { .type = MemberType::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(subtype, enums) };
 				}
@@ -251,7 +251,8 @@ namespace rip::schemas::hedgeset {
 				}
 			}
 
-			std::ranges::copy(std::views::values(structEnums), res->enums.end());
+			auto vals = std::views::values(structEnums);
+			std::ranges::copy(vals.begin(), vals.end(), std::back_inserter(res->enums));
 
 			res->members = std::move(structMembers);
 			res->size = align(offset, res->GetAlignment());

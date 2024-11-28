@@ -190,8 +190,8 @@ namespace rip::binary {
 				const char* str = yyjson_get_str(state.currentVal);
 				for (auto& option : info.options) {
 					if (!strcmp(option.GetEnglishName(), str)) {
-						T val = static_cast<T>(option.GetIndex());
-						return visit_primitive(val, PrimitiveInfo<T>{});
+						obj = static_cast<T>(option.GetIndex());
+						return 0;
 					}
 				}
 				assert("unhandled enum");
@@ -325,7 +325,7 @@ namespace rip::binary {
 			measureState.worker.processQueuedBlocks();
 			size_t size = measureState.worker.allocator.sizeRequired;
 
-			result = (opaque_obj*)GameInterface::get_fallback_allocator()->Alloc(size, 16);
+			result = (opaque_obj*)GameInterface::AllocatorSystem::get_allocator()->Alloc(size, 16);
 			writeState.worker.allocator.origin = result;
 
 			memset(result, 0, size);

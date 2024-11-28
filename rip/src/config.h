@@ -3,14 +3,7 @@
 #include <filesystem>
 #include <string>
 
-template<typename TS>
-using GI = ucsl::reflection::game_interfaces::standalone::StandaloneGameInterface<TS>;
-
-enum class Game {
-	WARS,
-	RANGERS,
-	MILLER,
-};
+using GI = ucsl::reflection::game_interfaces::standalone::StandaloneGameInterface;
 
 enum class Format {
 	BINARY,
@@ -29,7 +22,6 @@ enum class ResourceType {
 struct Config {
 	std::filesystem::path inputFile{ "input.rfl" };
 	std::filesystem::path outputFile{};
-	Game game{ Game::MILLER };
 	std::optional<ResourceType> resourceType{};
 	std::optional<std::string> version{};
 	std::optional<Format> inputFormat{};

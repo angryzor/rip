@@ -8,12 +8,6 @@
 #include <iostream>
 #include <map>
 
-std::map<std::string, Game> gameMap{
-	{ "wars", Game::WARS },
-	{ "rangers", Game::RANGERS },
-	{ "miller", Game::MILLER },
-};
-
 std::map<std::string, Format> formatMap{
 	{ "binary", Format::BINARY },
 	{ "json", Format::JSON },
@@ -25,10 +19,9 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "rfl", ResourceType::RFL },
 	{ "vat", ResourceType::VAT },
 	{ "fxcol", ResourceType::FXCOL },
-	{ "swif", ResourceType::SWIF },
+//	{ "swif", ResourceType::SWIF },
 };
 
-auto gameMapReverse = reverse_map(gameMap);
 auto formatMapReverse = reverse_map(formatMap);
 auto resourceTypeMapReverse = reverse_map(resourceTypeMap);
 
@@ -42,8 +35,6 @@ int main(int argc, char** argv) {
 		->required()
 		->check(CLI::ExistingFile);
 	app.add_option("output", config.outputFile, "The output file.");
-	app.add_option("-g,--game", config.game, "The target game.")
-		->transform(CLI::CheckedTransformer(gameMap, CLI::ignore_case));
 	app.add_option("-r,--resource-type", config.resourceType, "The resource type.")
 		->transform(CLI::CheckedTransformer(resourceTypeMap, CLI::ignore_case));
 	auto* version = app.add_option("-v,--version", config.version, "The resource version. Available options are: asm -> 103; gedit -> 2, 3; vat -> 1-rangers, 1-miller; fxcol -> 1");
@@ -62,7 +53,7 @@ int main(int argc, char** argv) {
 	try {
 		config.validate();
 
-		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << " using types for game " << gameMapReverse[config.game] << "..." << std::endl;
+		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << "..." << std::endl;
 		std::cerr << "Input file: " << config.inputFile.generic_string() << std::endl;
 		std::cerr << "Output file: " << config.getOutputFile().generic_string() << std::endl;
 

@@ -36,12 +36,12 @@ namespace rip::binary {
 			size_t offset = align(sizeRequired, alignment);
 			sizeRequired = offset + size;
 
-			return (T*)GameInterface::get_fallback_allocator()->Alloc(size, alignment);
+			return (T*)GameInterface::AllocatorSystem::get_allocator()->Alloc(size, alignment);
 		}
 
 		void cleanup() {
 			for (auto* ptr : live_objs)
-				GameInterface::get_fallback_allocator()->Free(ptr);
+				GameInterface::AllocatorSystem::get_allocator()->Free(ptr);
 
 			live_objs.clear();
 		}

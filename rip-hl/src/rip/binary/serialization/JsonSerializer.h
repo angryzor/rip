@@ -158,7 +158,7 @@ namespace rip::binary {
 
 			template<typename T, typename O>
 			result_type visit_enum(T& obj, const EnumInfo<O>& info) {
-				yyjson_mut_val* val = f(obj).value;
+				yyjson_mut_val* val = visit_primitive(obj, PrimitiveInfo<T>{}).value;
 				auto v = yyjson_mut_get_sint(val);
 				for (auto& option : info.options)
 					if (option.GetIndex() == v)
@@ -255,7 +255,7 @@ namespace rip::binary {
 			ucsl::reflection::traversals::traversal<SerializeChunk> operation{ *this };
 			operation(data, refl);
 			yyjson_write_err err;
-			yyjson_mut_write_file(filename, doc, YYJSON_WRITE_PRETTY_TWO_SPACES, nullptr, &err);
+			yyjson_mut_write_file(filename, doc, YYJSON_WRITE_PRETTY_TWO_SPACES | YYJSON_WRITE_ALLOW_INF_AND_NAN, nullptr, &err);
 
 			if (err.code != YYJSON_WRITE_SUCCESS) {
 				std::cout << "Error writing json: " << err.msg << std::endl;

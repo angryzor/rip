@@ -8,7 +8,7 @@ std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".rfl", ResourceType::RFL },
 	{ ".vat", ResourceType::VAT },
 	{ ".fxcol", ResourceType::FXCOL },
-	{ ".swif", ResourceType::SWIF },
+//	{ ".swif", ResourceType::SWIF },
 };
 
 auto extByResourceType = reverse_map(resourceTypeByExt);

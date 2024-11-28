@@ -17,9 +17,6 @@
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-rangers.h>
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-miller.h>
 #include <ucsl-reflection/reflections/resources/swif/v6.h>
-
-static_assert(std::is_same_v<simplerfl::canonical_t<ucsl::resources::animation_state_machine::v103::AsmData>, ucsl::resources::animation_state_machine::v103::reflections::AsmData>);
-
 #include <config.h>
 #include <io/load_input.h>
 #include <io/write_output.h>
@@ -67,8 +64,8 @@ namespace rip::cli::convert {
 			version<"1.03", ucsl::resources::animation_state_machine::v103::AsmData>
 		>,
 		resource<ResourceType::GEDIT, "3",
-			version<"2", ucsl::resources::object_world::v2::ObjectWorldData>,
-			version<"3", ucsl::resources::object_world::v3::ObjectWorldData>
+			version<"2", ucsl::resources::object_world::v2::ObjectWorldData<GI::AllocatorSystem>>,
+			version<"3", ucsl::resources::object_world::v3::ObjectWorldData<GI::AllocatorSystem>>
 		>,
 		resource<ResourceType::RFL, "2-1.00",
 			version<"1", ucsl::resources::rfl::v1::Ref1Data<>>,
