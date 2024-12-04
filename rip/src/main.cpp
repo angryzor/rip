@@ -7,6 +7,7 @@
 #include <CLI/CLI.hpp>
 #include <iostream>
 #include <map>
+#include <ucsl-reflection/reflections/resources/fxcol/v1.h>
 
 std::map<std::string, Format> formatMap{
 	{ "binary", Format::BINARY },
@@ -56,6 +57,8 @@ int main(int argc, char** argv) {
 		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << "..." << std::endl;
 		std::cerr << "Input file: " << config.inputFile.generic_string() << std::endl;
 		std::cerr << "Output file: " << config.getOutputFile().generic_string() << std::endl;
+
+		ucsl::reflection::game_interfaces::standalone::StandaloneGameInterface::boot();
 
 		if (!config.hedgesetTemplate.empty())
 			loadHedgesetTemplate(config);

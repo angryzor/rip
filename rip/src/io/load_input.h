@@ -14,6 +14,6 @@ InputFile<T>* loadInputFile(const Config& config) {
 		else
 			return new BinaryInputFile<T>{ config };
 	case Format::JSON: return new JsonInputFile<T>{ config };
-	default: assert('unknown input format'); return nullptr;
+	default: assert("unknown input format"); return nullptr;
 	}
 }

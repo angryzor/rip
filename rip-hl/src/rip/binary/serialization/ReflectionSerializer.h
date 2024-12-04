@@ -132,9 +132,7 @@ namespace rip::binary {
 
 			template<typename F>
 			int visit_union(opaque_obj& obj, const UnionInfo& info, F f) {
-				size_t unionStart = serializer.backend.tellp();
 				f(obj);
-				serializer.backend.write_padding_bytes(info.size - (serializer.backend.tellp() - unionStart));
 				return 0;
 			}
 
@@ -142,11 +140,15 @@ namespace rip::binary {
 			int visit_type(opaque_obj& obj, const TypeInfo& info, F f) {
 				serializer.backend.write_padding(info.alignment);
 
+				size_t typeStart = serializer.backend.tellp();
+
 				// Catch alignment issues.
 				if (currentStructAddr)
 					assert((serializer.backend.tellp() - dbgStructStartLoc) == (reinterpret_cast<size_t>(&obj) - reinterpret_cast<size_t>(currentStructAddr)));
 
 				f(obj);
+
+				serializer.backend.write_padding_bytes(info.size - (serializer.backend.tellp() - typeStart));
 
 				// Catch alignment issues.
 				if (currentStructAddr)
@@ -162,8 +164,6 @@ namespace rip::binary {
 			template<typename F>
 			int visit_base_struct(opaque_obj& obj, const StructureInfo& info, F f) {
 				f(obj);
-
-				serializer.backend.write_padding(info.alignment);
 				return 0;
 			}
 
@@ -176,8 +176,6 @@ namespace rip::binary {
 				currentStructAddr = &obj;
 
 				f(obj);
-
-				serializer.backend.write_padding(info.alignment);
 
 				dbgStructStartLoc = prevDbgStructStartLoc;
 				currentStructAddr = prevStructAddr;

@@ -167,7 +167,7 @@ namespace rip::binary {
 			result_type visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
 				auto buffer = (const char**)addptr(&obj, 0x0);
 				auto allocator = (void**)addptr(&obj, 0x8);
-				*buffer = yyjson_get_str(state.currentVal);
+				visit_primitive(*buffer, PrimitiveInfo<const char*>{});
 				*allocator = nullptr;
 				return 0;
 			}

@@ -115,7 +115,7 @@ namespace rip::schemas::hedgeset {
 			std::optional<std::vector<StandaloneRflSystem::RflClassEnumMember>> flag_values{ std::nullopt };
 		};
 
-		static MemberType get_primitive_type(const std::string& type) {
+		MemberType get_primitive_type(const std::string& type) {
 			if (type == "int8") return MemberType::SINT8;
 			if (type == "uint8") return MemberType::UINT8;
 			if (type == "int16") return MemberType::SINT16;
@@ -135,7 +135,7 @@ namespace rip::schemas::hedgeset {
 			if (type == "color8") return MemberType::COLOR_BYTE;
 			if (type == "colorf") return MemberType::COLOR_FLOAT;
 			if (type == "string") return MemberType::STRING;
-			if (type == "object_reference") return MemberType::OBJECT_ID;
+			if (type == "object_reference") return templ.format == "gedit_v3" ? MemberType::OBJECT_ID_V2 : MemberType::OBJECT_ID_V1;
 			return MemberType::VOID;
 		}
 
@@ -179,7 +179,7 @@ namespace rip::schemas::hedgeset {
 				return { .type = get_primitive_type(subtype) };
 			}
 
-			if (templ.format == "gedit_v3") {
+			if (templ.format == "gedit_v2") {
 				if (templ.structs.contains(subtype))
 					return { .type = MemberType::OLD_ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 

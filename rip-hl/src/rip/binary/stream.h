@@ -50,7 +50,7 @@ namespace rip::binary {
 			shadow_pos = loc;
 		}
 
-		size_t tellp() {
+		size_t tellp() const {
 			return shadow_pos;
 		}
 	};
@@ -80,7 +80,7 @@ namespace rip::binary {
 			stream.seekp(loc + offset);
 		}
 
-		size_t tellp() {
+		size_t tellp() const {
 			return stream.tellp() - offset;
 		}
 	};

@@ -22,6 +22,8 @@ namespace rip::binary {
 				assert(backend.tellp() == offset);
 
 				processFunc();
+
+				assert(backend.tellp() == offset + size);
 			});
 		}
 
