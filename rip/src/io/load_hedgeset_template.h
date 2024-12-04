@@ -6,5 +6,5 @@
 void loadHedgesetTemplate(const Config& config) {
 	auto templ = rip::schemas::hedgeset::load(config.hedgesetTemplate.generic_string());
 	rip::schemas::hedgeset::schema_builder s{ templ };
-	GI::reflectionDB.load_schema(s.get_schema());
+	GI::reflectionDB->load_schema(s.get_schema());
 }
