@@ -385,7 +385,10 @@ namespace rip::schemas::hedgeset {
 			if (type == MemberType::COLOR_BYTE) return { .type = "color8" };
 			if (type == MemberType::COLOR_FLOAT) return { .type = "colorf" };
 			if (type == MemberType::STRING) return { .type = "string" };
-			if (type == MemberType::OBJECT_ID) return { .type = "object_reference" };
+			if constexpr (GameInterface::RflSystem::TypeSet::supports_object_id_v1)
+				if (type == MemberType::OBJECT_ID_V1) return { .type = "object_reference" };
+			if constexpr (GameInterface::RflSystem::TypeSet::supports_object_id_v2)
+				if (type == MemberType::OBJECT_ID_V2) return { .type = "object_reference" };
 			assert(false && "unknown type");
 			return { .type = "unknown" };
 		}
@@ -558,7 +561,9 @@ namespace rip::schemas::hedgeset {
 
 	template<typename GameInterface, HSONFormat format>
 	class hson_template_builder : public template_builder<GameInterface> {
-		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format == HSONFormat::V3, "HSON format must be V3 if type system does not support old array");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format != HSONFormat::V2, "HSON format must not be V2 if type system does not support old array");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v1 || format != HSONFormat::V2, "HSON format must not be V2 if type system does not support object ID v1");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v2 || format != HSONFormat::V3, "HSON format must not be V3 if type system does not support object ID v2");
 
 		std::string get_object(const GameInterface::GameObjectClass& object) {
 			std::string name = object.GetName();
