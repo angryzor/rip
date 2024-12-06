@@ -212,10 +212,7 @@ namespace rip::binary {
 				auto length = (size_t*)addptr(&arr.underlying, 0x8);
 				auto capacity = (size_t*)addptr(&arr.underlying, 0x10);
 				auto allocator = (void**)addptr(&arr.underlying, 0x18);
-				// We are not placing nullptrs for zero size arrays here because ST's serializer also doesn't seem to do so (it leaves dangling pointers).
-				// We are, however, generating different addresses than their implementation atm because the blobserializer is currently not operating
-				// in deferred mode. This is because we still need to implement the JSON accessors. Otherwise we would read invalid rfl class names from memory.
-				*buffer = enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
+				*buffer = arrsize == 0 ? nullptr : enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
 					size_t i, max;
 					yyjson_val* item;
 					yyjson_arr_foreach (state.currentVal, i, max, item) {
@@ -235,7 +232,7 @@ namespace rip::binary {
 				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
 				auto length = (size_t*)addptr(&arr.underlying, 0x8);
 				auto capacity = (size_t*)addptr(&arr.underlying, 0x10);
-				*buffer = enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
+				*buffer = arrsize == 0 ? nullptr : enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
 					size_t i, max;
 					yyjson_val* item;
 					yyjson_arr_foreach (state.currentVal, i, max, item) {
