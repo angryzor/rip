@@ -10,10 +10,10 @@ namespace rip::binary {
 	template<typename Backend>
 	class BlobSerializer {
 		Backend& backend;
-		BlobWorker<> worker{};
+		BlobWorker<> worker;
 
 	public:
-		BlobSerializer(Backend& backend) : backend{ backend } {}
+		BlobSerializer(Backend& backend) : backend{ backend }, worker{ backend.tellp() } {}
 
 		template<typename F>
 		size_t enqueueBlock(size_t size, size_t alignment, F processFunc) {

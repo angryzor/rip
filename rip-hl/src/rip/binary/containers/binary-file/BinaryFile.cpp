@@ -46,7 +46,7 @@ namespace rip::binary::containers::binary_file::v2 {
 	}
 
 	chunk_ostream::chunk_ostream(const ucsl::magic_t<4>& magic, binary_ostream& stream, unsigned short additionalHeaderSize) : magic{ magic }, stream{ stream }, additionalHeaderSize{ additionalHeaderSize }, chunkOffset{ stream.tellp() }, offset_binary_ostream { stream, stream.tellp() + sizeof(ChunkHeader) + additionalHeaderSize } {
-		stream.write(ChunkHeader{ magic, 0, 0, 0, 0, additionalHeaderSize });
+		stream.write(ChunkHeader{});
 
 		for (unsigned short i = 0; i < additionalHeaderSize; i++)
 			stream.write(static_cast<unsigned char>(0));
@@ -63,20 +63,21 @@ namespace rip::binary::containers::binary_file::v2 {
 		writeOffsetTable();
 		size_t chunkEnd = stream.tellp();
 		
+		ChunkHeader chunkHeader{};
+		chunkHeader.magic = magic;
+		chunkHeader.size = static_cast<unsigned int>(chunkEnd - chunkOffset);
+		chunkHeader.dataSize = static_cast<unsigned int>(stringTableStart - sizeof(ChunkHeader) - additionalHeaderSize - chunkOffset);
+		chunkHeader.stringTableSize = static_cast<unsigned int>(offsetTableStart - stringTableStart);
+		chunkHeader.offsetTableSize = static_cast<unsigned int>(chunkEnd - offsetTableStart);
+		chunkHeader.additionalHeaderSize = additionalHeaderSize;
+		
 		stream.seekp(chunkOffset);
-		stream.write(ChunkHeader{
-			.magic = magic,
-			.size = static_cast<unsigned int>(chunkEnd - chunkOffset),
-			.dataSize = static_cast<unsigned int>(stringTableStart - sizeof(ChunkHeader) - additionalHeaderSize - chunkOffset),
-			.stringTableSize = static_cast<unsigned int>(offsetTableStart - stringTableStart),
-			.offsetTableSize = static_cast<unsigned int>(chunkEnd - offsetTableStart),
-			.additionalHeaderSize = additionalHeaderSize,
-		});
+		stream.write(chunkHeader);
 		stream.seekp(chunkEnd);
 	}
 
 	BinaryFileWriter::BinaryFileWriter(binary_ostream& stream, std::endian endianness) : stream{stream}, endianness{endianness} {
-		stream.write(FileHeader{ "BINA", "210", endianness == std::endian::big ? 'B' : 'L', 0, 0 });
+		stream.write(FileHeader{});
 	}
 
 	BinaryFileWriter::~BinaryFileWriter()
@@ -92,14 +93,16 @@ namespace rip::binary::containers::binary_file::v2 {
 	void BinaryFileWriter::finish()
 	{
 		size_t pos = stream.tellp();
+
+		FileHeader fileHeader{};
+		fileHeader.magic = "BINA";
+		fileHeader.version = "210";
+		fileHeader.endianness = endianness == std::endian::big ? 'B' : 'L';
+		fileHeader.fileSize = static_cast<unsigned int>(pos);
+		fileHeader.chunkCount = chunkCount;
+
 		stream.seekp(0);
-		stream.write(FileHeader{
-			.magic = "BINA",
-			.version = "210",
-			.endianness = endianness == std::endian::big ? 'B' : 'L',
-			.fileSize = static_cast<unsigned int>(pos),
-			.chunkCount = chunkCount,
-		});
+		stream.write(fileHeader);
 		stream.seekp(pos);
 	}
 

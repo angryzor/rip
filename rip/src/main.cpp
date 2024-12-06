@@ -20,7 +20,7 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "rfl", ResourceType::RFL },
 	{ "vat", ResourceType::VAT },
 	{ "fxcol", ResourceType::FXCOL },
-//	{ "swif", ResourceType::SWIF },
+	{ "swif", ResourceType::SWIF },
 };
 
 auto formatMapReverse = reverse_map(formatMap);

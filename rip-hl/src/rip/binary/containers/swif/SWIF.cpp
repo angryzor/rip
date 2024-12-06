@@ -20,13 +20,20 @@ namespace rip::binary::containers::swif::v6 {
 		writeAddressResolutionChunk();
 		writeEndChunk();
 
+		ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER header{};
+		header.chunkCount = chunkCount;
+		header.chunksStart = static_cast<unsigned int>(chunksStart);
+		header.chunksSize = static_cast<unsigned int>(chunksEnd - chunksStart);
+		header.addressResolutionHeaderOffset = static_cast<unsigned int>(addressResolutionChunkOffset);
+		header.revision = 20120705;
+
 		stream.seekp(8);
-		stream.write(ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER{ chunkCount, static_cast<unsigned int>(chunksStart), static_cast<unsigned int>(chunksEnd - chunksStart), static_cast<unsigned int>(addressResolutionChunkOffset), 20120705 });
+		stream.write(header);
 	}
 
 	void SWIFSerializer::writeBinaryFileHeaderChunk() {
 		writeChunk(SWIF, [&]() {
-			stream.write(ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER{ 0, 0, 0, 0, 20120705 });
+			stream.write(ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER{});
 		});
 	}
 
@@ -34,7 +41,11 @@ namespace rip::binary::containers::swif::v6 {
 		addressResolutionChunkOffset = stream.tellp();
 
 		writeChunk(SOF0, [&]() {
-			stream.write(ucsl::resources::swif::v6::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER{ static_cast<unsigned int>(addressLocations.size()), 0 });
+			ucsl::resources::swif::v6::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER header{};
+			header.addressToResolveCount = static_cast<unsigned int>(addressLocations.size());
+			header.isResolved = 0;
+
+			stream.write(header);
 			for (unsigned int addressLocation : addressLocations)
 				stream.write(addressLocation);
 		});

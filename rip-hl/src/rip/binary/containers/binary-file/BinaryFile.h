@@ -11,12 +11,12 @@
 
 namespace rip::binary::containers::binary_file::v2 {
 	struct FileHeader {
-		ucsl::magic_t<4> magic{};
-		ucsl::magic_t<3> version{};
-		char endianness{};
-		unsigned int fileSize{};
-		unsigned short chunkCount{};
-		unsigned char flags{};
+		ucsl::magic_t<4> magic;
+		ucsl::magic_t<3> version;
+		char endianness;
+		unsigned int fileSize;
+		unsigned short chunkCount;
+		unsigned char flags;
 
 		inline void byteswap_deep() noexcept {
 			rip::byteswap_deep(fileSize);
@@ -25,12 +25,12 @@ namespace rip::binary::containers::binary_file::v2 {
 	};
 
 	struct ChunkHeader {
-		ucsl::magic_t<4> magic{};
-		unsigned int size{};
-		unsigned int dataSize{};
-		unsigned int stringTableSize{};
-		unsigned int offsetTableSize{};
-		unsigned short additionalHeaderSize{};
+		ucsl::magic_t<4> magic;
+		unsigned int size;
+		unsigned int dataSize;
+		unsigned int stringTableSize;
+		unsigned int offsetTableSize;
+		unsigned short additionalHeaderSize;
 
 		inline void byteswap_deep() noexcept {
 			rip::byteswap_deep(size);

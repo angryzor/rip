@@ -64,7 +64,10 @@ namespace rip::binary::containers::swif::v6 {
 		void writeChunk(unsigned int magic, F&& writeFunc) {
 			size_t start = stream.tellp();
 
-			ucsl::resources::swif::v6::SRS_CHUNK_HEADER chunkHeader{ magic, 0 };
+			ucsl::resources::swif::v6::SRS_CHUNK_HEADER chunkHeader{};
+			chunkHeader.magic = magic;
+			chunkHeader.chunkSize = 0;
+
 			stream.write(chunkHeader);
 
 			size_t dataStart = stream.tellp();
@@ -93,8 +96,13 @@ namespace rip::binary::containers::swif::v6 {
 			writeMainChunk(SWTL, [&]() {
 				TextureListArray& textureListArr{ *reinterpret_cast<TextureListArray*>(textureLists) };
 
-				stream.write(ucsl::resources::swif::v6::SRS_TEXTURELIST_CHUNK_HEADER{ 16, static_cast<unsigned int>(textureListCount) });
+				ucsl::resources::swif::v6::SRS_TEXTURELIST_CHUNK_HEADER header{};
+				header.startOffset = 16;
+				header.textureListCount = static_cast<unsigned int>(textureListCount);
+
+				stream.write(header);
 				stream.write_padding(16);
+				gTextureListCount = static_cast<unsigned int>(textureListCount);
 				reflectionSerializer.serialize(textureListArr, ucsl::reflection::providers::simplerfl<GameInterface>::reflect(textureListArr));
 			});
 		}
@@ -102,7 +110,10 @@ namespace rip::binary::containers::swif::v6 {
 		template<typename GameInterface>
 		void writeProjectChunk(ucsl::resources::swif::v6::SRS_PROJECT& project) {
 			writeMainChunk(SWPR, [&]() {
-				stream.write(ucsl::resources::swif::v6::SRS_PROJECT_CHUNK_HEADER{ 16 });
+				ucsl::resources::swif::v6::SRS_PROJECT_CHUNK_HEADER header{};
+				header.startOffset = 16;
+
+				stream.write(header);
 				stream.write_padding(16);
 				reflectionSerializer.serialize(project, ucsl::reflection::providers::simplerfl<GameInterface>::reflect(project));
 			});

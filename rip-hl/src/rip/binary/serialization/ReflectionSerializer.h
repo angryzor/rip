@@ -15,22 +15,17 @@ namespace rip::binary {
 	template<typename Backend>
 	class ReflectionSerializer {
 		Backend& backend;
-		BlobSerializer<Backend> blobSerializer;
-		std::map<const void*, size_t> knownPtrs{};
 
-		template<typename T, typename F>
-		serialized_types::o64_t<T> enqueueBlock(const T* ptr, size_t bufferSize, size_t alignment, F processFunc) {
-			if (ptr == nullptr)
-				return serialized_types::o64_t<T>{};
+		// We keep the buffer size as well, since sometimes an earlier reference serialized a smaller slice
+		// of the buffer, and in that case we can't simply point back to this already stored version.
+		// We could do a lot of work to roll back and instead store a larger buffer, but for now I'm just
+		// duplicating the data in that case, since it mostly happens with dangling pointers of empty MoveArrays.
+		struct DisambiguatedPointer {
+			size_t offset;
+			size_t bufferSize;
+		};
 
-			auto it = knownPtrs.find(ptr);
-			if (it != knownPtrs.end())
-				return it->second;
-
-			size_t offset = blobSerializer.enqueueBlock(bufferSize, alignment, processFunc);
-			knownPtrs[ptr] = offset;
-			return offset;
-		}
+		std::map<const void*, DisambiguatedPointer> knownPtrs{};
 
 		class SerializeChunk {
 		public:
@@ -38,10 +33,25 @@ namespace rip::binary {
 			typedef int result_type;
 
 			ReflectionSerializer& serializer;
+			BlobSerializer<Backend> blobSerializer;
 			size_t dbgStructStartLoc{};
 			void* currentStructAddr{};
 
-			SerializeChunk(ReflectionSerializer& serializer) : serializer{ serializer } {}
+			SerializeChunk(ReflectionSerializer& serializer) : serializer{ serializer }, blobSerializer{ serializer.backend } {}
+
+			template<typename T, typename F>
+			serialized_types::o64_t<T> enqueueBlock(const T* ptr, size_t bufferSize, size_t alignment, F processFunc) {
+				if (ptr == nullptr)
+					return serialized_types::o64_t<T>{};
+
+				auto it = serializer.knownPtrs.find(ptr);
+				if (it != serializer.knownPtrs.end() && bufferSize <= it->second.bufferSize)
+					return it->second.offset;
+
+				size_t offset = blobSerializer.enqueueBlock(bufferSize, alignment, processFunc);
+				serializer.knownPtrs[ptr] = { offset, bufferSize };
+				return offset;
+			}
 
 			template<typename T, std::enable_if_t<!std::is_fundamental_v<T>, bool> = true>
 			int visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
@@ -59,7 +69,7 @@ namespace rip::binary {
 				if constexpr (Backend::hasNativeStrings)
 					serializer.backend.write(obj);
 				else
-					serializer.backend.write(serializer.enqueueBlock(obj, strlen(obj) + 1, 1, [this, obj]() {
+					serializer.backend.write(obj == nullptr ? serialized_types::o64_t<char>{} : enqueueBlock(obj, strlen(obj) + 1, 1, [this, obj]() {
 						serializer.backend.write<char>(*obj, strlen(obj) + 1);
 					}));
 			}
@@ -76,7 +86,7 @@ namespace rip::binary {
 			}
 
 			int visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
-				serializer.backend.write(obj == nullptr ? serialized_types::o64_t<opaque_obj>{} : serializer.knownPtrs[obj]);
+				serializer.backend.write(obj == nullptr ? serialized_types::o64_t<opaque_obj>{} : serialized_types::o64_t<opaque_obj>{ serializer.knownPtrs[obj].offset });
 				return 0;
 			}
 
@@ -92,9 +102,9 @@ namespace rip::binary {
 
 			template<typename F, typename C, typename D, typename A>
 			int visit_array(A& arr, const ArrayInfo& info, C c, D d, F f) {
-				serializer.backend.write(serializer.enqueueBlock(&arr[0], arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
+				serializer.backend.write(enqueueBlock(&arr[0], arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
 					A myarr{ arr };
-					for (auto& item : myarr)
+					for (opaque_obj& item : myarr)
 						f(item);
 				}));
 				serializer.backend.write(arr.size());
@@ -105,9 +115,9 @@ namespace rip::binary {
 
 			template<typename F, typename C, typename D, typename A>
 			int visit_tarray(A& arr, const ArrayInfo& info, C c, D d, F f) {
-				serializer.backend.write(serializer.enqueueBlock(&arr[0], arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
+				serializer.backend.write(enqueueBlock(&arr[0], arr.size() * info.itemSize, info.itemAlignment, [arr, f]() {
 					A myarr{ arr };
-					for (auto& item : myarr)
+					for (opaque_obj& item : myarr)
 						f(item);
 				}));
 				serializer.backend.write(arr.size());
@@ -117,7 +127,7 @@ namespace rip::binary {
 
 			template<typename F>
 			int visit_pointer(opaque_obj*& obj, const PointerInfo& info, F f) {
-				serializer.backend.write(serializer.enqueueBlock(obj, info.targetSize, info.targetAlignment, [&obj, f]() {
+				serializer.backend.write(enqueueBlock(obj, info.targetSize, info.targetAlignment, [obj, f]() {
 					f(*obj);
 				}));
 				return 0;
@@ -184,20 +194,19 @@ namespace rip::binary {
 
 			template<typename F>
 			int visit_root(opaque_obj& obj, const RootInfo& info, F f) {
-				serializer.enqueueBlock(&obj, info.size, info.alignment, [&obj, f]() { f(obj); });
+				enqueueBlock(&obj, info.size, info.alignment, [&obj, f]() { f(obj); });
+				blobSerializer.processQueuedBlocks();
 				return 0;
 			}
 		};
 
 	public:
-		ReflectionSerializer(Backend& backend) : backend{ backend }, blobSerializer { backend } {
-		}
+		ReflectionSerializer(Backend& backend) : backend{ backend } { }
 
 		template<typename T, typename R>
 		void serialize(T& data, R refl) {
 			ucsl::reflection::traversals::traversal<SerializeChunk> operation{ *this };
 			operation(data, refl);
-			blobSerializer.processQueuedBlocks();
 		}
 	};
 }

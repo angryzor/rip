@@ -61,7 +61,10 @@ namespace rip::binary {
 		}
 
 	public:
-		Allocator allocator{};
+		Allocator allocator;
+
+		template<typename... Args>
+		BlobWorker(Args&&... args) : allocator{ std::forward<Args>(args)... } {}
 
 		template<typename F>
 		T enqueueBlock(size_t size, size_t alignment, F processFunc) {

@@ -18,11 +18,11 @@ namespace rip::binary {
 		const char* filename;
 		opaque_obj* result{};
 
-		template<typename Allocator>
+		template<typename Allocator, bool deferred>
 		struct OperationState {
 			JsonDeserializer& deserializer;
 			yyjson_val* currentVal{};
-			BlobWorker<opaque_obj*, Allocator, false> worker{};
+			BlobWorker<opaque_obj*, Allocator, deferred> worker{};
 		};
 
 		template<typename OpState>
@@ -168,6 +168,8 @@ namespace rip::binary {
 				auto buffer = (const char**)addptr(&obj, 0x0);
 				auto allocator = (void**)addptr(&obj, 0x8);
 				visit_primitive(*buffer, PrimitiveInfo<const char*>{});
+				if (!strcmp("", *buffer))
+					*buffer = nullptr;
 				*allocator = nullptr;
 				return 0;
 			}
@@ -210,6 +212,9 @@ namespace rip::binary {
 				auto length = (size_t*)addptr(&arr.underlying, 0x8);
 				auto capacity = (size_t*)addptr(&arr.underlying, 0x10);
 				auto allocator = (void**)addptr(&arr.underlying, 0x18);
+				// We are not placing nullptrs for zero size arrays here because ST's serializer also doesn't seem to do so (it leaves dangling pointers).
+				// We are, however, generating different addresses than their implementation atm because the blobserializer is currently not operating
+				// in deferred mode. This is because we still need to implement the JSON accessors. Otherwise we would read invalid rfl class names from memory.
 				*buffer = enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
 					size_t i, max;
 					yyjson_val* item;
@@ -299,8 +304,11 @@ namespace rip::binary {
 			}
 		};
 
-		OperationState<HeapBlockAllocator<GameInterface, opaque_obj>> measureState{ *this };
-		OperationState<SequentialMemoryBlockAllocator<opaque_obj>> writeState{ *this };
+		using MeasureState = OperationState<HeapBlockAllocator<GameInterface, opaque_obj>, false>;
+		using WriteState = OperationState<SequentialMemoryBlockAllocator<opaque_obj>, false>;
+
+		MeasureState measureState{ *this };
+		WriteState writeState{ *this };
 
 	public:
 		JsonDeserializer(const char* filename) : filename{ filename } {
@@ -320,7 +328,7 @@ namespace rip::binary {
 			}
 
 			T* stub{};
-			ucsl::reflection::traversals::traversal<OperationBase<OperationState<HeapBlockAllocator<GameInterface, opaque_obj>>>> measureOp{ measureState };
+			ucsl::reflection::traversals::traversal<OperationBase<MeasureState>> measureOp{ measureState };
 			measureOp.operator()<T>(*stub, refl);
 			measureState.worker.processQueuedBlocks();
 			size_t size = measureState.worker.allocator.sizeRequired;
@@ -330,7 +338,7 @@ namespace rip::binary {
 
 			memset(result, 0, size);
 
-			ucsl::reflection::traversals::traversal<OperationBase<OperationState<SequentialMemoryBlockAllocator<opaque_obj>>>> writeOp{ writeState };
+			ucsl::reflection::traversals::traversal<OperationBase<WriteState>> writeOp{ writeState };
 			writeOp.operator()<T>(*(T*)result, refl);
 			writeState.worker.processQueuedBlocks();
 
