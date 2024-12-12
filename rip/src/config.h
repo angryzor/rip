@@ -17,6 +17,12 @@ enum class ResourceType {
 	VAT,
 	FXCOL,
 	SWIF,
+	SOBJ,
+};
+
+enum class AddressingMode {
+	_32,
+	_64,
 };
 
 struct Config {
@@ -28,6 +34,7 @@ struct Config {
 	std::optional<Format> outputFormat{};
 	std::filesystem::path schema{};
 	std::filesystem::path hedgesetTemplate{};
+	AddressingMode addressingMode{ AddressingMode::_64 };
 	static std::string rflClass;
 
 	ResourceType getResourceType() const;

@@ -7,12 +7,17 @@
 #include <rip/util/memory.h>
 
 namespace rip::binary {
+	struct BlockAllocationData {
+		size_t size{};
+		size_t alignment{};
+	};
+
 	struct SequentialBlockAllocator {
 		size_t nextOffset{};
 
-		size_t allocate(size_t size, size_t alignment) {
-			size_t offset = align(nextOffset, alignment);
-			nextOffset = offset + size;
+		size_t allocate(BlockAllocationData allocationData) {
+			size_t offset = align(nextOffset, allocationData.alignment);
+			nextOffset = offset + allocationData.size;
 			return offset;
 		}
 	};
@@ -22,8 +27,8 @@ namespace rip::binary {
 		T* origin{};
 		SequentialBlockAllocator seqAllocator{};
 
-		T* allocate(size_t size, size_t alignment) {
-			return addptr(origin, seqAllocator.allocate(size, alignment));
+		T* allocate(BlockAllocationData allocationData) {
+			return addptr(origin, seqAllocator.allocate(allocationData));
 		}
 	};
 
@@ -32,11 +37,14 @@ namespace rip::binary {
 		size_t sizeRequired{};
 		std::vector<T*> live_objs{};
 
-		T* allocate(size_t size, size_t alignment) {
-			size_t offset = align(sizeRequired, alignment);
-			sizeRequired = offset + size;
+		T* allocate(BlockAllocationData allocationData) {
+			size_t offset = align(sizeRequired, allocationData.alignment);
+			sizeRequired = offset + allocationData.size;
 
-			return (T*)GameInterface::AllocatorSystem::get_allocator()->Alloc(size, alignment);
+			std::cout << "Allocating block of " << std::hex << allocationData.size << std::endl;
+			T* res = (T*)GameInterface::AllocatorSystem::get_allocator()->Alloc(allocationData.size, allocationData.alignment);
+			live_objs.push_back(res);
+			return res;
 		}
 
 		void cleanup() {
@@ -47,8 +55,30 @@ namespace rip::binary {
 		}
 	};
 
-	template<typename T = size_t, typename Allocator = SequentialBlockAllocator, bool deferred = true>
-	class BlobWorker {
+	enum class SchedulingType {
+		IMMEDIATE,
+		DEFERRED,
+		DEFERRED_ALLOCATION,
+	};
+
+	template<typename T, typename Allocator>
+	class ImmediateBlobWorkerScheduler {
+		Allocator& allocator;
+	public:
+		ImmediateBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
+
+		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
+			auto allocationData = allocationDataGetter();
+			offset = allocator.allocate(allocationData);
+			processFunc(offset, allocationData.alignment);
+		}
+
+		void processQueuedBlocks() {
+		}
+	};
+
+	template<typename T, typename Allocator>
+	class DeferredBlobWorkerScheduler {
 		struct WorkQueueEntry {
 			T offset;
 			size_t alignment;
@@ -56,24 +86,15 @@ namespace rip::binary {
 		};
 
 		std::queue<WorkQueueEntry> workQueue{};
-		void processChunk(const WorkQueueEntry chunk) {
-			chunk.processFunc(chunk.offset, chunk.alignment);
-		}
+		Allocator& allocator;
 
 	public:
-		Allocator allocator;
+		DeferredBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
 
-		template<typename... Args>
-		BlobWorker(Args&&... args) : allocator{ std::forward<Args>(args)... } {}
-
-		template<typename F>
-		T enqueueBlock(size_t size, size_t alignment, F processFunc) {
-			T offset = allocator.allocate(size, alignment);
-			if constexpr (deferred)
-				workQueue.push(WorkQueueEntry{ offset, alignment, processFunc });
-			else
-				processChunk(WorkQueueEntry{ offset, alignment, processFunc });
-			return offset;
+		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
+			auto allocationData = allocationDataGetter();
+			offset = allocator.allocate(allocationData);
+			workQueue.push(WorkQueueEntry{ offset, allocationData.alignment, processFunc });
 		}
 
 		void processQueuedBlocks() {
@@ -81,8 +102,70 @@ namespace rip::binary {
 				auto chunk = workQueue.front();
 				workQueue.pop();
 
-				processChunk(chunk);
+				chunk.processFunc(chunk.offset, chunk.alignment);
 			}
+		}
+	};
+
+	template<typename T, typename Allocator>
+	class DeferredAllocationBlobWorkerScheduler {
+		struct WorkQueueEntry {
+			T& offset;
+			std::function<BlockAllocationData()> allocationDataGetter;
+			std::function<void(T, size_t)> processFunc;
+		};
+
+		std::queue<WorkQueueEntry> workQueue{};
+		Allocator& allocator;
+
+	public:
+		DeferredAllocationBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
+
+		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
+			workQueue.push(WorkQueueEntry{ offset, allocationDataGetter, processFunc });
+		}
+
+		void processQueuedBlocks() {
+			while (!workQueue.empty()) {
+				auto chunk = workQueue.front();
+				workQueue.pop();
+				
+				chunk.offset = (T)0xFAFAFAFA;
+				BlockAllocationData allocationData = chunk.allocationDataGetter();
+				chunk.offset = allocator.allocate(allocationData);
+				chunk.processFunc(chunk.offset, allocationData.alignment);
+			}
+		}
+	};
+
+	template<typename T = size_t, typename Allocator = SequentialBlockAllocator, template<typename, typename> typename Scheduler = DeferredBlobWorkerScheduler>
+	class BlobWorker {
+	public:
+		Allocator allocator;
+
+	private:
+		Scheduler<T, Allocator> scheduler;
+
+	public:
+		template<typename... Args>
+		BlobWorker(Args&&... args) : allocator{ std::forward<Args>(args)... }, scheduler{ allocator } {}
+
+		T enqueueBlock(size_t size, size_t alignment, auto processFunc) {
+			T offset{};
+			enqueueBlock(offset, size, alignment, processFunc);
+			return offset;
+		}
+
+		void enqueueBlock(T& offset, size_t size, size_t alignment, auto processFunc) {
+			scheduler.enqueueBlock(offset, [size, alignment]() { return BlockAllocationData{ size, alignment }; }, processFunc);
+		}
+
+		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
+			scheduler.enqueueBlock(offset, allocationDataGetter, processFunc);
+		}
+
+		void processQueuedBlocks() {
+			scheduler.processQueuedBlocks();
 		}
 	};
 }

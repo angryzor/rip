@@ -4,11 +4,11 @@
 #include "SWIF.h"
 
 namespace rip::binary::containers::swif::v6 {
-	SWIFSerializer::swif_ostream::swif_ostream(SWIFSerializer& serializer) : offset_binary_ostream{ serializer.stream, 0 }, serializer { serializer }
+	SWIFSerializer::swif_ostream::swif_ostream(SWIFSerializer& serializer) : binary_ostream<size_t>{ serializer.rawStream, 0 }, serializer { serializer }
 	{
 	}
 
-	SWIFSerializer::SWIFSerializer(binary_ostream& stream) : stream{ stream } {
+	SWIFSerializer::SWIFSerializer(std::ostream& stream) : rawStream{ stream } {
 		writeBinaryFileHeaderChunk();
 
 		chunksStart = stream.tellp();

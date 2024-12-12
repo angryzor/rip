@@ -2,13 +2,13 @@
 #include <optional>
 
 namespace rip::binary {
-	namespace serialized_types {
-		template<typename U, typename T> struct offset_t : public std::optional<U> {
-		public:
-			using std::optional<U>::optional;
-		};
+	enum class AddressingMode {
+		AM32,
+		AM64
+	};
 
-		template<typename T> using o64_t = offset_t<size_t, T>;
-		template<typename T> using o32_t = offset_t<unsigned int, T>;
+	template<typename U> struct offset_t : public std::optional<size_t> {
+	public:
+		using std::optional<size_t>::optional;
 	};
 }

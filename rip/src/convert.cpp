@@ -8,6 +8,7 @@
 #include <ucsl/resources/vertex-animation-texture/v1-rangers.h>
 #include <ucsl/resources/vertex-animation-texture/v1-miller.h>
 #include <ucsl/resources/swif/v6.h>
+#include <ucsl/resources/sobj/v1.h>
 #include <ucsl-reflection/reflections/resources/asm/v103.h>
 #include <ucsl-reflection/reflections/resources/fxcol/v1.h>
 #include <ucsl-reflection/reflections/resources/object-world/v2.h>
@@ -17,6 +18,7 @@
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-rangers.h>
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-miller.h>
 #include <ucsl-reflection/reflections/resources/swif/v6.h>
+#include <ucsl-reflection/reflections/resources/sobj/v1.h>
 #include <config.h>
 #include <io/load_input.h>
 #include <io/write_output.h>
@@ -80,6 +82,9 @@ namespace rip::cli::convert {
 		>,
 		resource<ResourceType::SWIF, "6",
 			version<"6", ucsl::resources::swif::v6::SRS_PROJECT>
+		>,
+		resource<ResourceType::SOBJ, "1",
+			version<"1", ucsl::resources::sobj::v1::SetObjectData>
 		>
 	>;
 

@@ -115,7 +115,7 @@ namespace rip::schemas::hedgeset {
 			std::optional<std::vector<StandaloneRflSystem::RflClassEnumMember>> flag_values{ std::nullopt };
 		};
 
-		MemberType get_primitive_type(const std::string& type) {
+		MemberType get_primitive_type(const std::string& type, const std::optional<unsigned int>& alignment = std::nullopt) {
 			if (type == "int8") return MemberType::SINT8;
 			if (type == "uint8") return MemberType::UINT8;
 			if (type == "int16") return MemberType::SINT16;
@@ -127,7 +127,7 @@ namespace rip::schemas::hedgeset {
 			if (type == "bool") return MemberType::BOOL;
 			if (type == "float32") return MemberType::FLOAT;
 			if (type == "vector2") return MemberType::VECTOR2;
-			if (type == "vector3") return MemberType::VECTOR3;
+			if (type == "vector3") return alignment.has_value() && alignment.value() == 16 ? MemberType::VECTOR3 : MemberType::POSITION;
 			if (type == "vector4") return MemberType::VECTOR4;
 			if (type == "quaternion") return MemberType::QUATERNION;
 			if (type == "matrix34") return MemberType::MATRIX34;
@@ -162,7 +162,7 @@ namespace rip::schemas::hedgeset {
 				return { .type = MemberType::FLAGS, .subtype = get_primitive_type(member.subtype.value()), .flag_values = get_flag_values(member) };
 
 			if (member.type != "array")
-				return { .type = get_primitive_type(member.type) };
+				return { .type = get_primitive_type(member.type, member.alignment) };
 
 			auto& subtype = member.subtype.value();
 
@@ -176,20 +176,20 @@ namespace rip::schemas::hedgeset {
 					return { .type = MemberType::ENUM, .subtype = get_primitive_type(e.type), .enumm = load_enum(subtype, enums) };
 				}
 
-				return { .type = get_primitive_type(subtype) };
+				return { .type = get_primitive_type(subtype, member.alignment) };
 			}
 
 			if (templ.format == "gedit_v2") {
 				if (templ.structs.contains(subtype))
 					return { .type = MemberType::OLD_ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 
-				return { .type = MemberType::OLD_ARRAY, .subtype = get_primitive_type(subtype) };
+				return { .type = MemberType::OLD_ARRAY, .subtype = get_primitive_type(subtype, member.alignment) };
 			}
 
 			if (templ.structs.contains(subtype))
 				return { .type = MemberType::ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 
-			return { .type = MemberType::ARRAY, .subtype = get_primitive_type(subtype) };
+			return { .type = MemberType::ARRAY, .subtype = get_primitive_type(subtype, member.alignment) };
 		}
 
 		std::shared_ptr<StandaloneRflSystem::RflClassEnum> load_enum(const std::string& name, std::map<std::string, std::shared_ptr<StandaloneRflSystem::RflClassEnum>>& enums) {

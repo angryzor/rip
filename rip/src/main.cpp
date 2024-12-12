@@ -21,10 +21,17 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "vat", ResourceType::VAT },
 	{ "fxcol", ResourceType::FXCOL },
 	{ "swif", ResourceType::SWIF },
+	{ "sobj", ResourceType::SOBJ },
+};
+
+std::map<std::string, AddressingMode> addressingModeMap{
+	{ "32", AddressingMode::_32 },
+	{ "64", AddressingMode::_64 },
 };
 
 auto formatMapReverse = reverse_map(formatMap);
 auto resourceTypeMapReverse = reverse_map(resourceTypeMap);
+auto addressingModeMapReverse = reverse_map(addressingModeMap);
 
 int main(int argc, char** argv) {
 	CLI::App app{ "Restoration Issue Pocketknife" };
@@ -46,6 +53,8 @@ int main(int argc, char** argv) {
 	auto* schemaOpt = app.add_option("-s,--schema", config.schema, "The RFL Schema file to use. (doesn't work yet)");
 	app.add_option("-t,--hedgeset-template", config.hedgesetTemplate, "The HedgeSet template file to use.")
 		->excludes(schemaOpt);
+	app.add_option("-a,--addressing-mode", config.addressingMode, "Addressing mode (32 or 64 bit).")
+		->transform(CLI::CheckedTransformer(addressingModeMap, CLI::ignore_case));;
 	app.add_option("-c,--rfl-class", Config::rflClass, "When converting RFL files: the name of the RflClass to use.");
 	app.validate_positionals();
 
@@ -54,7 +63,7 @@ int main(int argc, char** argv) {
 	try {
 		config.validate();
 
-		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << "..." << std::endl;
+		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << " (" << addressingModeMapReverse[config.addressingMode] << " bit)..." << std::endl;
 		std::cerr << "Input file: " << config.inputFile.generic_string() << std::endl;
 		std::cerr << "Output file: " << config.getOutputFile().generic_string() << std::endl;
 

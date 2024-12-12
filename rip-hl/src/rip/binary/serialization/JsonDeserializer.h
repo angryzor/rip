@@ -6,7 +6,6 @@
 #include <iomanip>
 #include <sstream>
 #include "BlobWorker.h"
-#include "BlobSerializer.h"
 
 namespace rip::binary {
 	using namespace ucsl::reflection;
@@ -17,13 +16,6 @@ namespace rip::binary {
 		yyjson_doc* doc{};
 		const char* filename;
 		opaque_obj* result{};
-
-		template<typename Allocator, bool deferred>
-		struct OperationState {
-			JsonDeserializer& deserializer;
-			yyjson_val* currentVal{};
-			BlobWorker<opaque_obj*, Allocator, deferred> worker{};
-		};
 
 		template<typename OpState>
 		class OperationBase {
@@ -209,8 +201,8 @@ namespace rip::binary {
 			result_type visit_array(A& arr, const ArrayInfo& info, C c, D d, F f) {
 				size_t arrsize = yyjson_arr_size(state.currentVal);
 				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
-				auto length = (size_t*)addptr(&arr.underlying, 0x8);
-				auto capacity = (size_t*)addptr(&arr.underlying, 0x10);
+				auto length = (unsigned long long*)addptr(&arr.underlying, 0x8);
+				auto capacity = (unsigned long long*)addptr(&arr.underlying, 0x10);
 				auto allocator = (void**)addptr(&arr.underlying, 0x18);
 				*buffer = arrsize == 0 ? nullptr : enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
 					size_t i, max;
@@ -230,8 +222,8 @@ namespace rip::binary {
 			result_type visit_tarray(A& arr, const ArrayInfo& info, C c, D d, F f) {
 				size_t arrsize = yyjson_arr_size(state.currentVal);
 				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
-				auto length = (size_t*)addptr(&arr.underlying, 0x8);
-				auto capacity = (size_t*)addptr(&arr.underlying, 0x10);
+				auto length = (unsigned long long*)addptr(&arr.underlying, 0x8);
+				auto capacity = (long long*)addptr(&arr.underlying, 0x10);
 				*buffer = arrsize == 0 ? nullptr : enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
 					size_t i, max;
 					yyjson_val* item;
@@ -245,9 +237,9 @@ namespace rip::binary {
 				return 0;
 			}
 
-			template<typename F>
-			result_type visit_pointer(opaque_obj*& obj, const PointerInfo& info, F f) {
-				obj = yyjson_is_null(state.currentVal) ? nullptr : enqueue_block(info.targetSize, info.targetAlignment, [f](opaque_obj* target) { return f(*target); });
+			template<typename F, typename A, typename S>
+			result_type visit_pointer(opaque_obj*& obj, const PointerInfo<A, S>& info, F f) {
+				obj = yyjson_is_null(state.currentVal) ? nullptr : enqueue_block(info.getTargetSize(), info.getTargetAlignment(), [f](opaque_obj* target) { return f(*target); });
 				return 0;
 			}
 
@@ -301,8 +293,15 @@ namespace rip::binary {
 			}
 		};
 
-		using MeasureState = OperationState<HeapBlockAllocator<GameInterface, opaque_obj>, false>;
-		using WriteState = OperationState<SequentialMemoryBlockAllocator<opaque_obj>, false>;
+		template<typename Allocator>
+		struct OperationState {
+			JsonDeserializer& deserializer;
+			yyjson_val* currentVal{};
+			BlobWorker<opaque_obj*, Allocator, ImmediateBlobWorkerScheduler> worker{};
+		};
+
+		using MeasureState = OperationState<HeapBlockAllocator<GameInterface, opaque_obj>>;
+		using WriteState = OperationState<SequentialMemoryBlockAllocator<opaque_obj>>;
 
 		MeasureState measureState{ *this };
 		WriteState writeState{ *this };

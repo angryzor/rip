@@ -187,8 +187,8 @@ namespace rip::binary {
 				return jarr;
 			}
 
-			template<typename F>
-			result_type visit_pointer(opaque_obj*& obj, const PointerInfo& info, F f) {
+			template<typename F, typename A, typename S>
+			result_type visit_pointer(opaque_obj*& obj, const PointerInfo<A, S>& info, F f) {
 				return obj == nullptr ? yyjson_mut_null(serializer.doc) : f(*obj);
 			}
 

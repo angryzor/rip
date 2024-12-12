@@ -15,6 +15,36 @@ namespace simplerfl {
 	template<> struct canonical<rip::binary::containers::swif::v6::TextureListArray> { using type = rip::binary::containers::swif::v6::TextureListArrayRefl; };
 }
 
+namespace rip::util {
+	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER& value) noexcept {
+		byteswap_deep(value.chunkCount);
+		byteswap_deep(value.chunksStart);
+		byteswap_deep(value.chunksSize);
+		byteswap_deep(value.addressResolutionHeaderOffset);
+		byteswap_deep(value.revision);
+		byteswap_deep(value.addressResolutionHeaderOffset);
+	}
+
+	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER& value) noexcept {
+		byteswap_deep(value.addressToResolveCount);
+		byteswap_deep(value.isResolved);
+	}
+
+	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_CHUNK_HEADER& value) noexcept {
+		byteswap_deep(value.magic);
+		byteswap_deep(value.chunkSize);
+	}
+
+	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_TEXTURELIST_CHUNK_HEADER& value) noexcept {
+		byteswap_deep(value.startOffset);
+		byteswap_deep(value.textureListCount);
+	}
+
+	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_PROJECT_CHUNK_HEADER& value) noexcept {
+		byteswap_deep(value.startOffset);
+	}
+}
+
 namespace rip::binary::containers::swif::v6 {
 	static constexpr const unsigned int SWIF = 0x46495753;
 	static constexpr const unsigned int SWTL = 0x4C545753;
@@ -23,7 +53,7 @@ namespace rip::binary::containers::swif::v6 {
 	static constexpr const unsigned int SOF0 = 0x30464F53;
 
 	class SWIFSerializer {
-		class swif_ostream : public offset_binary_ostream {
+		class swif_ostream : public binary_ostream<size_t> {
 			SWIFSerializer& serializer;
 
 		public:
@@ -32,29 +62,22 @@ namespace rip::binary::containers::swif::v6 {
 			static constexpr bool hasNativeStrings = false;
 
 			template<typename T>
-			void write(const T& obj, size_t count = 1) {
-				serializer.stream.write(obj, count);
+			void write(const T& obj) {
+				binary_ostream<size_t>::write(obj);
 			}
 
 			template<typename T>
-			void write(const serialized_types::o64_t<T>& obj) {
-				if (obj.has_value()) {
-					serializer.addressLocations.push_back(static_cast<unsigned int>(serializer.stream.tellp()));
-					serializer.stream.write(obj.value());
-				}
-				else
-					serializer.stream.write(0ull);
-			}
-
-			template<typename T>
-			void write(const serialized_types::o32_t<T>& obj) {
-				assert(!"This container only supports 64-bit offsets");
+			void write(const offset_t<T>& obj) {
+				if (obj.has_value())
+					serializer.addressLocations.push_back(static_cast<unsigned int>(tellp()));
+				
+				binary_ostream<size_t>::write(obj);
 			}
 		};
 
-		binary_ostream& stream;
-		swif_ostream swifStream{ *this };
-		ReflectionSerializer<swif_ostream> reflectionSerializer{ swifStream };
+		fast_ostream rawStream;
+		swif_ostream stream{ *this };
+		ReflectionSerializer<swif_ostream> reflectionSerializer{ stream };
 		std::vector<unsigned int> addressLocations{};
 		size_t addressResolutionChunkOffset{};
 		size_t chunksStart{};
@@ -122,7 +145,7 @@ namespace rip::binary::containers::swif::v6 {
 		void writeAddressResolutionChunk();
 		void writeEndChunk();
 	public:
-		SWIFSerializer(binary_ostream& stream);
+		SWIFSerializer(std::ostream& stream);
 		~SWIFSerializer();
 
 		template<typename GameInterface>
