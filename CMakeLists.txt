@@ -3,8 +3,6 @@ project(rip VERSION 1.0.18
                  DESCRIPTION "Restoration Issue Pocketknife"
                  LANGUAGES CXX)
 
-set(UCSL_EIGEN_MATH ON)
-
 include(FetchContent)
 FetchContent_Declare(yyjson GIT_REPOSITORY https://github.com/ibireme/yyjson.git GIT_TAG c3af82ba8d72125469d956fe8c9f0de5b3b8f5e7 EXCLUDE_FROM_ALL)
 FetchContent_Declare(reflectcpp GIT_REPOSITORY https://github.com/getml/reflect-cpp.git GIT_TAG v0.16.0 EXCLUDE_FROM_ALL)

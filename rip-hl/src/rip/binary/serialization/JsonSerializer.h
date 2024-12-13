@@ -5,13 +5,14 @@
 #include <yyjson.h>
 #include <iomanip>
 #include <sstream>
+#include <rip/util/object-id-guids.h>
 
 namespace rip::binary {
 	using namespace ucsl::reflection;
 	using namespace ucsl::reflection::traversals;
 
 	class JsonSerializer {
-		yyjson_mut_doc* doc{ yyjson_mut_doc_new(nullptr) };
+		yyjson_mut_doc* doc;
 		const char* filename;
 		yyjson_mut_val* currentStruct{};
 
@@ -55,33 +56,33 @@ namespace rip::binary {
 			// These can probably be replaced by a recursive simplerfl traversal.
 			result_type visit_primitive(ucsl::math::Vector2& obj, const PrimitiveInfo<ucsl::math::Vector2>& info) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
-				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
 				return res;
 			}
 
 			result_type visit_primitive(ucsl::math::Vector3& obj, const PrimitiveInfo<ucsl::math::Vector3>& info) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
-				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
-				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
 				return res;
 			}
 
 			result_type visit_primitive(ucsl::math::Position& obj, const PrimitiveInfo<ucsl::math::Position>& info) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
-				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
-				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
 				return res;
 			}
 
 			yyjson_mut_val* make_vec4(ucsl::math::Vector4& obj) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
-				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
-				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
-				yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+				yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
 				return res;
 			}
 
@@ -91,28 +92,26 @@ namespace rip::binary {
 
 			result_type visit_primitive(ucsl::math::Quaternion& obj, const PrimitiveInfo<ucsl::math::Quaternion>& info) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x);
-				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y);
-				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z);
-				yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w);
+				yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+				yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+				yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+				yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
 				return res;
 			}
 
 			result_type visit_primitive(ucsl::math::Matrix34& obj, const PrimitiveInfo<ucsl::math::Matrix34>& info) {
-				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_val(serializer.doc, res, "t", make_vec4(obj.t));
-				yyjson_mut_obj_add_val(serializer.doc, res, "u", make_vec4(obj.u));
-				yyjson_mut_obj_add_val(serializer.doc, res, "v", make_vec4(obj.v));
-				yyjson_mut_obj_add_val(serializer.doc, res, "w", make_vec4(obj.w));
+				yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+				for (size_t i = 0; i < obj.rows(); i++)
+					for (size_t j = 0; j < obj.cols(); j++)
+						yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
 				return res;
 			}
 
 			result_type visit_primitive(ucsl::math::Matrix44& obj, const PrimitiveInfo<ucsl::math::Matrix44>& info) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_val(serializer.doc, res, "t", make_vec4(obj.t));
-				yyjson_mut_obj_add_val(serializer.doc, res, "u", make_vec4(obj.u));
-				yyjson_mut_obj_add_val(serializer.doc, res, "v", make_vec4(obj.v));
-				yyjson_mut_obj_add_val(serializer.doc, res, "w", make_vec4(obj.w));
+				for (size_t i = 0; i < obj.rows(); i++)
+					for (size_t j = 0; j < obj.cols(); j++)
+						yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
 				return res;
 			}
 
@@ -135,13 +134,15 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::objectids::ObjectIdV1& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV1>& info) {
-				return yyjson_mut_uint(serializer.doc, obj.id);
+				char guid[39];
+				util::toGUID(obj, guid);
+				return yyjson_mut_strcpy(serializer.doc, guid);
 			}
 
 			result_type visit_primitive(ucsl::objectids::ObjectIdV2& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV2>& info) {
-				std::ostringstream oss{};
-				oss << std::setfill('0') << std::setw(16) << std::hex << obj.groupId << std::setfill('0') << std::setw(16) << std::hex << obj.objectId;
-				return yyjson_mut_strcpy(serializer.doc, oss.str().c_str());
+				char guid[39];
+				util::toGUID(obj, guid);
+				return yyjson_mut_strcpy(serializer.doc, guid);
 			}
 
 			result_type visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
@@ -225,10 +226,6 @@ namespace rip::binary {
 			template<typename F>
 			result_type visit_struct(opaque_obj& obj, const StructureInfo& info, F f) {
 				yyjson_mut_val* thisStruct = yyjson_mut_obj(serializer.doc);
-
-				if (!serializer.currentStruct)
-					yyjson_mut_doc_set_root(serializer.doc, thisStruct);
-
 				yyjson_mut_val* prevStruct = serializer.currentStruct;
 				serializer.currentStruct = thisStruct;
 				result_type res = f(obj);
@@ -244,22 +241,14 @@ namespace rip::binary {
 		};
 
 	public:
-		JsonSerializer(const char* filename) : filename{ filename } {
+		JsonSerializer(yyjson_mut_doc* doc) : doc{ doc } {
 		}
 		~JsonSerializer() {
-			yyjson_mut_doc_free(doc);
 		}
 
 		template<typename T, typename R>
-		void serialize(T& data, R refl) {
-			ucsl::reflection::traversals::traversal<SerializeChunk> operation{ *this };
-			operation(data, refl);
-			yyjson_write_err err;
-			yyjson_mut_write_file(filename, doc, YYJSON_WRITE_PRETTY_TWO_SPACES | YYJSON_WRITE_ALLOW_INF_AND_NAN, nullptr, &err);
-
-			if (err.code != YYJSON_WRITE_SUCCESS) {
-				std::cout << "Error writing json: " << err.msg << std::endl;
-			}
+		yyjson_mut_val* serialize(T& data, R refl) {
+			return ucsl::reflection::traversals::traversal<SerializeChunk>{ *this }(data, refl).value;
 		}
 	};
 }

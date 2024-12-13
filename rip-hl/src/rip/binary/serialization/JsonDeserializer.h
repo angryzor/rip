@@ -2,6 +2,7 @@
 #include <ucsl-reflection/reflections/basic-types.h>
 #include <ucsl-reflection/traversals/types.h>
 #include <ucsl-reflection/opaque.h>
+#include <rip/util/object-id-guids.h>
 #include <yyjson.h>
 #include <iomanip>
 #include <sstream>
@@ -71,30 +72,30 @@ namespace rip::binary {
 
 			// These can probably be replaced by a recursive simplerfl traversal.
 			result_type visit_primitive(ucsl::math::Vector2& obj, const PrimitiveInfo<ucsl::math::Vector2>& info) {
-				obj.x = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
+				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Vector3& obj, const PrimitiveInfo<ucsl::math::Vector3>& info) {
-				obj.x = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
+				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Position& obj, const PrimitiveInfo<ucsl::math::Position>& info) {
-				obj.x = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
+				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
 				return 0;
 			}
 
 			void load_vec4(ucsl::math::Vector4& obj) {
-				obj.x = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
-				obj.w = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "w")));
+				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
+				obj.w() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "w")));
 			}
 
 			result_type visit_primitive(ucsl::math::Vector4& obj, const PrimitiveInfo<ucsl::math::Vector4>& info) {
@@ -103,26 +104,30 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::math::Quaternion& obj, const PrimitiveInfo<ucsl::math::Quaternion>& info) {
-				obj.x = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
-				obj.w = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "w")));
+				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
+				obj.w() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "w")));
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Matrix34& obj, const PrimitiveInfo<ucsl::math::Matrix34>& info) {
-				with_val(yyjson_obj_get(state.currentVal, "t"), [&]() { load_vec4(obj.t); return 0; });
-				with_val(yyjson_obj_get(state.currentVal, "u"), [&]() { load_vec4(obj.u); return 0; });
-				with_val(yyjson_obj_get(state.currentVal, "v"), [&]() { load_vec4(obj.v); return 0; });
-				with_val(yyjson_obj_get(state.currentVal, "w"), [&]() { load_vec4(obj.w); return 0; });
+				assert(yyjson_arr_size(state.currentVal) == 16);
+				size_t i, max;
+				yyjson_val* item;
+				yyjson_arr_foreach(state.currentVal, i, max, item) {
+					obj(i / 4, i % 4) = yyjson_get_real(item);
+				}
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Matrix44& obj, const PrimitiveInfo<ucsl::math::Matrix44>& info) {
-				with_val(yyjson_obj_get(state.currentVal, "t"), [&]() { load_vec4(obj.t); return 0; });
-				with_val(yyjson_obj_get(state.currentVal, "u"), [&]() { load_vec4(obj.u); return 0; });
-				with_val(yyjson_obj_get(state.currentVal, "v"), [&]() { load_vec4(obj.v); return 0; });
-				with_val(yyjson_obj_get(state.currentVal, "w"), [&]() { load_vec4(obj.w); return 0; });
+				assert(yyjson_arr_size(state.currentVal) == 16);
+				size_t i, max;
+				yyjson_val* item;
+				yyjson_arr_foreach(state.currentVal, i, max, item) {
+					obj(i / 4, i % 4) = yyjson_get_real(item);
+				}
 				return 0;
 			}
 
@@ -143,16 +148,12 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::objectids::ObjectIdV1& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV1>& info) {
-				obj.id = static_cast<unsigned int>(yyjson_get_uint(state.currentVal));
+				util::fromGUID(obj, yyjson_get_str(state.currentVal));
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::objectids::ObjectIdV2& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV2>& info) {
-				std::string s{ yyjson_get_str(state.currentVal) };
-				std::string g = s.substr(0, 16);
-				std::string o = s.substr(16, 16);
-				std::istringstream{ g } >> std::hex >> obj.groupId;
-				std::istringstream{ o } >> std::hex >> obj.objectId;
+				util::fromGUID(obj, yyjson_get_str(state.currentVal));
 				return 0;
 			}
 

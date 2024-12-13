@@ -38,48 +38,46 @@ namespace rip::util {
 	template<std::floating_point T> inline void byteswap_deep(T& value) noexcept { value = byteswap(value); }
 	// TODO: use reflection here.
 	template<> inline void byteswap_deep(ucsl::math::Vector2& value) noexcept {
-		byteswap_deep(value.x);
-		byteswap_deep(value.y);
+		byteswap_deep(value.x());
+		byteswap_deep(value.y());
 	}
 	template<> inline void byteswap_deep(ucsl::math::Vector3& value) noexcept {
-		byteswap_deep(value.x);
-		byteswap_deep(value.y);
-		byteswap_deep(value.z);
+		byteswap_deep(value.x());
+		byteswap_deep(value.y());
+		byteswap_deep(value.z());
 	}
 	template<> inline void byteswap_deep(ucsl::math::Vector4& value) noexcept {
-		byteswap_deep(value.x);
-		byteswap_deep(value.y);
-		byteswap_deep(value.z);
-		byteswap_deep(value.w);
+		byteswap_deep(value.x());
+		byteswap_deep(value.y());
+		byteswap_deep(value.z());
+		byteswap_deep(value.w());
 	}
 	template<> inline void byteswap_deep(ucsl::math::Quaternion& value) noexcept {
-		byteswap_deep(value.x);
-		byteswap_deep(value.y);
-		byteswap_deep(value.z);
-		byteswap_deep(value.w);
+		byteswap_deep(value.x());
+		byteswap_deep(value.y());
+		byteswap_deep(value.z());
+		byteswap_deep(value.w());
 	}
 	template<> inline void byteswap_deep(ucsl::math::Matrix34& value) noexcept {
-		byteswap_deep(value.t);
-		byteswap_deep(value.u);
-		byteswap_deep(value.v);
-		byteswap_deep(value.w);
+		for (size_t i = 0; i < value.rows(); i++)
+			for (size_t j = 0; j < value.cols(); j++)
+				byteswap_deep(value(i, j));
 	}
 	template<> inline void byteswap_deep(ucsl::math::Matrix44& value) noexcept {
-		byteswap_deep(value.t);
-		byteswap_deep(value.u);
-		byteswap_deep(value.v);
-		byteswap_deep(value.w);
+		for (size_t i = 0; i < value.rows(); i++)
+			for (size_t j = 0; j < value.cols(); j++)
+				byteswap_deep(value(i, j));
 	}
 	template<> inline void byteswap_deep(ucsl::math::Position& value) noexcept {
-		byteswap_deep(value.x);
-		byteswap_deep(value.y);
-		byteswap_deep(value.z);
+		byteswap_deep(value.x());
+		byteswap_deep(value.y());
+		byteswap_deep(value.z());
 	}
 	template<> inline void byteswap_deep(ucsl::math::Rotation& value) noexcept {
-		byteswap_deep(value.x);
-		byteswap_deep(value.y);
-		byteswap_deep(value.z);
-		byteswap_deep(value.w);
+		byteswap_deep(value.x());
+		byteswap_deep(value.y());
+		byteswap_deep(value.z());
+		byteswap_deep(value.w());
 	}
 	template<> inline void byteswap_deep(ucsl::colors::Color8& value) noexcept {
 		byteswap_deep(value.r);

@@ -95,8 +95,9 @@ namespace rip::schemas::hedgeset {
 	using Template = json_reflections::Template;
 
 	enum class HSONFormat {
-		V2,
-		V3,
+		GEDIT_V2,
+		GEDIT_V3,
+		SOBJ_V1
 	};
 
 	using namespace ucsl::reflection::game_interfaces::standalone;
@@ -179,7 +180,7 @@ namespace rip::schemas::hedgeset {
 				return { .type = get_primitive_type(subtype, member.alignment) };
 			}
 
-			if (templ.format == "gedit_v2") {
+			if (templ.format != "gedit_v3") {
 				if (templ.structs.contains(subtype))
 					return { .type = MemberType::OLD_ARRAY, .subtype = MemberType::STRUCT, .structt = load_rfl_class(subtype) };
 
@@ -379,6 +380,7 @@ namespace rip::schemas::hedgeset {
 			if (type == MemberType::VECTOR2) return { .type = "vector2", .range = generate_range<RangeVector2>(member) };
 			if (type == MemberType::VECTOR3) return { .type = "vector3", .range = generate_range<RangeVector3>(member), .alignment = 16 };
 			if (type == MemberType::VECTOR4) return { .type = "vector4", .range = generate_range<RangeVector4>(member) };
+			if (type == MemberType::POSITION) return { .type = "vector3", .range = generate_range<RangeVector3>(member) };
 			if (type == MemberType::QUATERNION) return { .type = "quaternion" };
 			if (type == MemberType::MATRIX34) return { .type = "matrix34" };
 			if (type == MemberType::MATRIX44) return { .type = "matrix44" };
@@ -561,9 +563,11 @@ namespace rip::schemas::hedgeset {
 
 	template<typename GameInterface, HSONFormat format>
 	class hson_template_builder : public template_builder<GameInterface> {
-		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format != HSONFormat::V2, "HSON format must not be V2 if type system does not support old array");
-		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v1 || format != HSONFormat::V2, "HSON format must not be V2 if type system does not support object ID v1");
-		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v2 || format != HSONFormat::V3, "HSON format must not be V3 if type system does not support object ID v2");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format != HSONFormat::GEDIT_V2, "HSON format must not be GEDIT_V2 if type system does not support old array");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format != HSONFormat::SOBJ_V1, "HSON format must not be SOBJ_V1 if type system does not support old array");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v1 || format != HSONFormat::GEDIT_V2, "HSON format must not be GEDIT_V2 if type system does not support object ID v1");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v1 || format != HSONFormat::SOBJ_V1, "HSON format must not be SOBJ_V1 if type system does not support object ID v1");
+		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v2 || format != HSONFormat::GEDIT_V3, "HSON format must not be V3 if type system does not support object ID v2");
 
 		std::string get_object(const GameInterface::GameObjectClass& object) {
 			std::string name = object.GetName();
@@ -591,7 +595,7 @@ namespace rip::schemas::hedgeset {
 	public:
 		hson_template_builder() {
 			this->templ.version = 1;
-			this->templ.format = format == HSONFormat::V3 ? "gedit_v3" : "gedit_v2";
+			this->templ.format = format == HSONFormat::GEDIT_V3 ? "gedit_v3" : "gedit_v2";
 		}
 
 		void add_object(const GameInterface::GameObjectClass& object) {

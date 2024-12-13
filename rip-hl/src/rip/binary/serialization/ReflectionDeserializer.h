@@ -138,10 +138,10 @@ namespace rip::binary {
 
 			template<typename F, typename C, typename D, typename A>
 			int visit_array(A& arr, const ArrayInfo& info, C c, D d, F f) {
-				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
-				auto length = (size_t*)addptr(&arr.underlying, 0x8);
-				auto capacity = (size_t*)addptr(&arr.underlying, 0x10);
-				auto allocator = (size_t*)addptr(&arr.underlying, 0x18);
+				auto buffer = (opaque_obj**)addptr(&arr.underlying, sizeof(size_t) * 0);
+				auto length = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 1);
+				auto capacity = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 2);
+				auto allocator = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 3);
 
 				offset_t<opaque_obj> offset{};
 				state.deserializer.backend.read(offset);
@@ -158,9 +158,9 @@ namespace rip::binary {
 
 			template<typename F, typename C, typename D, typename A>
 			int visit_tarray(A& arr, const ArrayInfo& info, C c, D d, F f) {
-				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
-				auto length = (size_t*)addptr(&arr.underlying, 0x8);
-				auto capacity = (size_t*)addptr(&arr.underlying, 0x10);
+				auto buffer = (opaque_obj**)addptr(&arr.underlying, sizeof(size_t) * 0);
+				auto length = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 1);
+				auto capacity = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 2);
 
 				offset_t<opaque_obj> offset{};
 				state.deserializer.backend.read(offset);
@@ -202,8 +202,6 @@ namespace rip::binary {
 				state.deserializer.backend.skip_padding(info.alignment);
 
 				size_t typeStart = state.deserializer.backend.tellg();
-
-				std::cout << "Type at " << std::hex << typeStart << " is " << std::hex << info.size << " large and aligned at " << std::hex << info.alignment << std::endl;
 
 				// Catch alignment issues.
 				if (currentStructAddr)

@@ -8,6 +8,7 @@ using GI = ucsl::reflection::game_interfaces::standalone::StandaloneGameInterfac
 enum class Format {
 	BINARY,
 	JSON,
+	HSON,
 };
 
 enum class ResourceType {

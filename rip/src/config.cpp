@@ -21,7 +21,7 @@ ResourceType Config::getResourceType() const {
 		return resourceType.value();
 
 	std::string inputExt = inputFile.extension().generic_string();
-	if (inputExt == ".json" && inputFile.stem().has_extension()) {
+	if ((inputExt == ".json" || inputExt == ".hson") && inputFile.stem().has_extension()) {
 		std::string binExt = inputFile.stem().extension().generic_string();
 
 		if (resourceTypeByExt.contains(binExt))
@@ -48,6 +48,9 @@ Format Config::getInputFormat() const {
 	if (inputFile.extension() == ".json")
 		return Format::JSON;
 
+	if (inputFile.extension() == ".hson")
+		return Format::HSON;
+
 	if (inputFile.extension().generic_string() == extByResourceType[getResourceType()])
 		return Format::BINARY;
 
@@ -58,11 +61,20 @@ Format Config::getOutputFormat() const {
 	if (outputFormat.has_value())
 		return outputFormat.value();
 
-	if (outputFile.empty())
-		return getInputFormat() == Format::BINARY ? Format::JSON : Format::BINARY;
+	if (outputFile.empty()) {
+		if (getInputFormat() != Format::BINARY)
+			return Format::BINARY;
+
+		auto resType = getResourceType();
+
+		return resType == ResourceType::GEDIT || resType == ResourceType::SOBJ ? Format::HSON : Format::JSON;
+	}
 
 	if (outputFile.extension() == ".json")
 		return Format::JSON;
+
+	if (outputFile.extension() == ".hson")
+		return Format::HSON;
 
 	if (outputFile.extension().generic_string() == extByResourceType[getResourceType()])
 		return Format::BINARY;
@@ -76,11 +88,12 @@ std::filesystem::path Config::getOutputFile() const {
 
 	std::filesystem::path replacedFile{ inputFile };
 
-	if (replacedFile.extension() == ".json" && replacedFile.stem().has_extension() && resourceTypeByExt.contains(replacedFile.stem().extension().generic_string()))
+	if ((replacedFile.extension() == ".json" || replacedFile.extension() == ".hson") && replacedFile.stem().has_extension() && resourceTypeByExt.contains(replacedFile.stem().extension().generic_string()))
 		replacedFile.replace_extension();
 
 	switch (getOutputFormat()) {
 	case Format::JSON: return std::move(replacedFile.replace_extension(extByResourceType[getResourceType()] + ".json"));
+	case Format::HSON: return std::move(replacedFile.replace_extension(extByResourceType[getResourceType()] + ".hson"));
 	case Format::BINARY: return std::move(replacedFile.replace_extension(extByResourceType[getResourceType()]));
 	}
 

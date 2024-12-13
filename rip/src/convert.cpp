@@ -84,7 +84,7 @@ namespace rip::cli::convert {
 			version<"6", ucsl::resources::swif::v6::SRS_PROJECT>
 		>,
 		resource<ResourceType::SOBJ, "1",
-			version<"1", ucsl::resources::sobj::v1::SetObjectData>
+			version<"1", ucsl::resources::sobj::v1::SetObjectData<GI::AllocatorSystem>>
 		>
 	>;
 

@@ -41,7 +41,6 @@ namespace rip::binary {
 			size_t offset = align(sizeRequired, allocationData.alignment);
 			sizeRequired = offset + allocationData.size;
 
-			std::cout << "Allocating block of " << std::hex << allocationData.size << std::endl;
 			T* res = (T*)GameInterface::AllocatorSystem::get_allocator()->Alloc(allocationData.size, allocationData.alignment);
 			live_objs.push_back(res);
 			return res;
