@@ -6,6 +6,7 @@
 #include <ucsl/resources/swif/v6.h>
 #include <ucsl-reflection/providers/simplerfl.h>
 #include <rip/binary/containers/binary-file/v2.h>
+#include <rip/binary/containers/mirage/v2.h>
 #include <rip/binary/containers/swif/SWIF.h>
 #include <rip/binary/serialization/JsonSerializer.h>
 #include <rip/binary/serialization/ReflectionSerializer.h>
@@ -42,6 +43,21 @@ void writeOutputFileOther(const Config& config, T* data) {
 		if constexpr (std::is_same_v<T, ucsl::resources::swif::v6::SRS_PROJECT>) {
 			rip::binary::containers::swif::v6::SWIFSerializer serializer{ ofs };
 			serializer.serialize<GI>(*data);
+		}
+		else if constexpr (std::is_same_v<T, ucsl::resources::material::contexts::ContextsData>) {
+			if (config.version == "1") {
+				rip::binary::containers::mirage::v1::MirageResourceImageWriter<size_t> writer{ ofs };
+				auto stream = writer.add_data(3);
+				rip::binary::ReflectionSerializer serializer{ stream };
+				serializer.serialize<T>(*data, ucsl::reflection::providers::simplerfl<GI>::template reflect<T>());
+			}
+			else {
+				rip::binary::containers::mirage::v2::MirageResourceImageWriter<size_t> writer{ ofs };
+				auto root = writer.add_root_node("Material", 1);
+				auto contexts = root.add_last_leaf_node("Contexts", 3);
+				rip::binary::ReflectionSerializer serializer{ contexts };
+				serializer.serialize<T>(*data, ucsl::reflection::providers::simplerfl<GI>::template reflect<T>());
+			}
 		}
 		else {
 			rip::binary::containers::binary_file::v2::BinaryFileSerializer<size_t> serializer{ ofs };

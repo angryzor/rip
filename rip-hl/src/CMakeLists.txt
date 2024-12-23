@@ -6,7 +6,7 @@ target_sources(rip-hl
         "rip/util/memory.h"
         "rip/binary/stream.h"
         "rip/binary/types.h"
-        "rip/binary/containers/binary-file/common.h"
+        
         "rip/binary/containers/binary-file/v1.h"
         "rip/binary/containers/binary-file/v2.h"
         "rip/binary/containers/swif/SWIF.h"
@@ -18,4 +18,4 @@ target_sources(rip-hl
         "rip/hson/HsonSerializer.h"
         "rip/hson/HsonDeserializer.h"
         "rip/schemas/hedgeset.h"
- "rip/binary/serialization/ReflectCppSerializer.h" "rip/util/object-id-guids.h")
+ "rip/binary/serialization/ReflectCppSerializer.h" "rip/util/object-id-guids.h" "rip/binary/containers/mirage/v1.h" "rip/binary/containers/mirage/v2.h")

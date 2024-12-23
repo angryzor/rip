@@ -66,9 +66,10 @@ namespace rip::binary {
 	public:
 		ImmediateBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
 
-		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
+		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
 			auto allocationData = allocationDataGetter();
-			offset = allocator.allocate(allocationData);
+			T offset = allocator.allocate(allocationData);
+			storeOffset(offset);
 			processFunc(offset, allocationData.alignment);
 		}
 
@@ -90,9 +91,10 @@ namespace rip::binary {
 	public:
 		DeferredBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
 
-		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
+		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
 			auto allocationData = allocationDataGetter();
-			offset = allocator.allocate(allocationData);
+			T offset = allocator.allocate(allocationData);
+			storeOffset(offset);
 			workQueue.push(WorkQueueEntry{ offset, allocationData.alignment, processFunc });
 		}
 
@@ -109,7 +111,7 @@ namespace rip::binary {
 	template<typename T, typename Allocator>
 	class DeferredAllocationBlobWorkerScheduler {
 		struct WorkQueueEntry {
-			T& offset;
+			std::function<void(T)> storeOffset;
 			std::function<BlockAllocationData()> allocationDataGetter;
 			std::function<void(T, size_t)> processFunc;
 		};
@@ -120,8 +122,8 @@ namespace rip::binary {
 	public:
 		DeferredAllocationBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
 
-		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
-			workQueue.push(WorkQueueEntry{ offset, allocationDataGetter, processFunc });
+		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
+			workQueue.push(WorkQueueEntry{ storeOffset, allocationDataGetter, processFunc });
 		}
 
 		void processQueuedBlocks() {
@@ -129,10 +131,11 @@ namespace rip::binary {
 				auto chunk = workQueue.front();
 				workQueue.pop();
 				
-				chunk.offset = (T)0xFAFAFAFA;
+				chunk.storeOffset((T)0xFAFAFAFA);
 				BlockAllocationData allocationData = chunk.allocationDataGetter();
-				chunk.offset = allocator.allocate(allocationData);
-				chunk.processFunc(chunk.offset, allocationData.alignment);
+				T offset = allocator.allocate(allocationData);
+				chunk.storeOffset(offset);
+				chunk.processFunc(offset, allocationData.alignment);
 			}
 		}
 	};
@@ -156,11 +159,15 @@ namespace rip::binary {
 		}
 
 		void enqueueBlock(T& offset, size_t size, size_t alignment, auto processFunc) {
-			scheduler.enqueueBlock(offset, [size, alignment]() { return BlockAllocationData{ size, alignment }; }, processFunc);
+			enqueueBlock(offset, [size, alignment]() { return BlockAllocationData{ size, alignment }; }, processFunc);
 		}
 
 		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
-			scheduler.enqueueBlock(offset, allocationDataGetter, processFunc);
+			enqueueBlock([&offset](T off) { offset = off; }, allocationDataGetter, processFunc);
+		}
+
+		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
+			scheduler.enqueueBlock(storeOffset, allocationDataGetter, processFunc);
 		}
 
 		void processQueuedBlocks() {

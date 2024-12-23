@@ -1,6 +1,8 @@
 #include "convert.h"
 #include <ucsl/resources/asm/v103.h>
 #include <ucsl/resources/fxcol/v1.h>
+#include <ucsl/resources/map/v1.h>
+#include <ucsl/resources/material/contexts.h>
 #include <ucsl/resources/object-world/v2.h>
 #include <ucsl/resources/object-world/v3.h>
 #include <ucsl/resources/rfl/v1.h>
@@ -9,8 +11,14 @@
 #include <ucsl/resources/vertex-animation-texture/v1-miller.h>
 #include <ucsl/resources/swif/v6.h>
 #include <ucsl/resources/sobj/v1.h>
+#include <ucsl/resources/nxs/v1.h>
+#include <ucsl/resources/path/v1.h>
+#include <ucsl/resources/path/v200.h>
+#include <ucsl/resources/pcmodel/v2.h>
 #include <ucsl-reflection/reflections/resources/asm/v103.h>
 #include <ucsl-reflection/reflections/resources/fxcol/v1.h>
+#include <ucsl-reflection/reflections/resources/map/v1.h>
+#include <ucsl-reflection/reflections/resources/material/contexts.h>
 #include <ucsl-reflection/reflections/resources/object-world/v2.h>
 #include <ucsl-reflection/reflections/resources/object-world/v3.h>
 #include <ucsl-reflection/reflections/resources/rfl/v1.h>
@@ -19,6 +27,10 @@
 #include <ucsl-reflection/reflections/resources/vertex-animation-texture/v1-miller.h>
 #include <ucsl-reflection/reflections/resources/swif/v6.h>
 #include <ucsl-reflection/reflections/resources/sobj/v1.h>
+#include <ucsl-reflection/reflections/resources/nxs/v1.h>
+#include <ucsl-reflection/reflections/resources/path/v1.h>
+#include <ucsl-reflection/reflections/resources/path/v200.h>
+#include <ucsl-reflection/reflections/resources/pcmodel/v2.h>
 #include <config.h>
 #include <io/load_input.h>
 #include <io/write_output.h>
@@ -69,11 +81,18 @@ namespace rip::cli::convert {
 			version<"2", ucsl::resources::object_world::v2::ObjectWorldData<GI::AllocatorSystem>>,
 			version<"3", ucsl::resources::object_world::v3::ObjectWorldData<GI::AllocatorSystem>>
 		>,
+		resource<ResourceType::MAP, "1",
+			version<"1", ucsl::resources::map::v1::MapData<GI::AllocatorSystem>>
+		>,
+		resource<ResourceType::MATERIAL, "2",
+			version<"1", ucsl::resources::material::contexts::ContextsData>,
+			version<"2", ucsl::resources::material::contexts::ContextsData>
+		>,
 		resource<ResourceType::RFL, "2-1.00",
 			version<"1", ucsl::resources::rfl::v1::Ref1Data<>>,
 			version<"2-1.00", ucsl::resources::rfl::v2::Ref2Data<>>
 		>,
-		resource<ResourceType::VAT, "3",
+		resource<ResourceType::VAT, "1-miller",
 			version<"1-rangers", ucsl::resources::vertex_animation_texture::v1_rangers::VertexAnimationTextureData>,
 			version<"1-miller", ucsl::resources::vertex_animation_texture::v1_miller::VertexAnimationTextureData>
 		>,
@@ -85,6 +104,16 @@ namespace rip::cli::convert {
 		>,
 		resource<ResourceType::SOBJ, "1",
 			version<"1", ucsl::resources::sobj::v1::SetObjectData<GI::AllocatorSystem>>
+		>,
+		resource<ResourceType::NXS, "1",
+			version<"1", ucsl::resources::nxs::v1::NXSData>
+		>,
+		resource<ResourceType::PATH, "2.00",
+			version<"1", ucsl::resources::path::v1::PathsData>,
+			version<"2.00", ucsl::resources::path::v200::PathsData>
+		>,
+		resource<ResourceType::PCMODEL, "2",
+			version<"2", ucsl::resources::pcmodel::v2::PointCloudModelData>
 		>
 	>;
 

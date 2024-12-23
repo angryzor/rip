@@ -106,10 +106,10 @@ namespace rip::hson {
 
 				rfl::Object<rfl::Generic> tags{};
 				
-				for (auto& componentData : obj->componentData) {
+				for (auto* componentData : obj->componentData) {
 					auto* componentRflClass = GameInterface::GameObjectSystem::GetInstance()->goComponentRegistry->GetComponentInformationByName(obj->gameObjectClass)->GetSpawnerDataClass();
 
-					tags[componentData.type] = getRflClassSerialization<GameInterface>(componentData.data, componentRflClass);
+					tags[componentData->type] = getRflClassSerialization<GameInterface>(componentData->data, componentRflClass);
 				}
 
 				auto rotation = eulerToQuat(obj->localTransform.rotation);
@@ -140,10 +140,10 @@ namespace rip::hson {
 
 				rfl::Object<rfl::Generic> tags{};
 
-				for (auto& componentData : obj->componentData) {
+				for (auto* componentData : obj->componentData) {
 					auto* componentRflClass = GameInterface::GameObjectSystem::GetInstance()->goComponentRegistry->GetComponentInformationByName(obj->gameObjectClass)->GetSpawnerDataClass();
 
-					tags[componentData.type] = getRflClassSerialization<GameInterface>(componentData.data, componentRflClass);
+					tags[componentData->type] = getRflClassSerialization<GameInterface>(componentData->data, componentRflClass);
 				}
 
 				auto rotation = eulerToQuat(obj->localTransform.rotation);

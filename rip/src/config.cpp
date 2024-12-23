@@ -5,38 +5,51 @@
 std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".asm", ResourceType::ASM },
 	{ ".gedit", ResourceType::GEDIT },
+	{ ".map.bin", ResourceType::MAP },
+	{ ".path.bin", ResourceType::PATH },
+	{ ".material", ResourceType::MATERIAL },
 	{ ".rfl", ResourceType::RFL },
 	{ ".vat", ResourceType::VAT },
 	{ ".fxcol", ResourceType::FXCOL },
 	{ ".swif", ResourceType::SWIF },
 	{ ".orc", ResourceType::SOBJ },
+	{ ".pcmodel", ResourceType::PCMODEL },
 };
 
 auto extByResourceType = reverse_map(resourceTypeByExt);
 
 std::string Config::rflClass{};
 
+std::optional<ResourceType> getResourceTypeByExtension(const std::filesystem::path& file) {
+	std::filesystem::path filename{ file };
+	std::string ext{};
+
+	while (filename.has_extension()) {
+		ext = filename.extension().generic_string() + ext;
+		filename = filename.stem();
+
+		if (resourceTypeByExt.contains(ext))
+			return resourceTypeByExt[ext];
+	}
+
+	return std::nullopt;
+}
+
 ResourceType Config::getResourceType() const {
 	if (resourceType.has_value())
 		return resourceType.value();
 
 	std::string inputExt = inputFile.extension().generic_string();
-	if ((inputExt == ".json" || inputExt == ".hson") && inputFile.stem().has_extension()) {
-		std::string binExt = inputFile.stem().extension().generic_string();
+	if ((inputExt == ".json" || inputExt == ".hson"))
+		if (auto resType = getResourceTypeByExtension(inputFile.stem()))
+			return resType.value();
 
-		if (resourceTypeByExt.contains(binExt))
-			return resourceTypeByExt[binExt];
-	}
+	if (auto resType = getResourceTypeByExtension(inputFile))
+		return resType.value();
 
-	if (resourceTypeByExt.contains(inputExt))
-		return resourceTypeByExt[inputExt];
-
-	if (!outputFile.empty()) {
-		std::string outputExt = outputFile.extension().generic_string();
-
-		if (resourceTypeByExt.contains(outputExt))
-			return resourceTypeByExt[outputExt];
-	}
+	if (!outputFile.empty())
+		if (auto resType = getResourceTypeByExtension(outputFile))
+			return resType.value();
 
 	throw std::runtime_error{ "The resource type was not specified and it cannot be deduced from the other selected options." };
 }
@@ -51,7 +64,7 @@ Format Config::getInputFormat() const {
 	if (inputFile.extension() == ".hson")
 		return Format::HSON;
 
-	if (inputFile.extension().generic_string() == extByResourceType[getResourceType()])
+	if (getResourceTypeByExtension(inputFile) == getResourceType())
 		return Format::BINARY;
 
 	throw std::runtime_error{ "The input format was not specified and it cannot be deduced from the other selected options." };

@@ -34,10 +34,10 @@ namespace rip::binary {
 				return res;
 			}
 
-			template<typename F>
-			opaque_obj* enqueue_block(size_t size, size_t alignment, F f) {
-				return state.worker.enqueueBlock(size, alignment, [this, size, f, blockVal = state.currentVal](opaque_obj* offset, size_t alignment) {
-					with_val(blockVal, [f, offset]() { return f(offset); });
+			template<typename T>
+			void enqueue_block(T*& ptr, auto alignmentGetter, auto processFunc) {
+				state.worker.enqueueBlock((opaque_obj*&)ptr, alignmentGetter, [this, processFunc, blockVal = state.currentVal](opaque_obj* offset, size_t alignment) {
+					with_val(blockVal, [processFunc, offset]() { return processFunc((T*)offset); });
 				});
 			}
 
@@ -56,12 +56,12 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(float& obj, const PrimitiveInfo<float>& info) {
-				obj = info.erased ? 0.0f : info.constantValue.has_value() ? info.constantValue.value() : static_cast<float>(yyjson_get_real(state.currentVal));
+				obj = info.erased ? 0.0f : info.constantValue.has_value() ? info.constantValue.value() : static_cast<float>(yyjson_get_num(state.currentVal));
 				return 0;
 			}
 
 			result_type visit_primitive(double& obj, const PrimitiveInfo<double>& info) {
-				obj = info.erased ? 0.0 : info.constantValue.has_value() ? info.constantValue.value() : yyjson_get_real(state.currentVal);
+				obj = info.erased ? 0.0 : info.constantValue.has_value() ? info.constantValue.value() : yyjson_get_num(state.currentVal);
 				return 0;
 			}
 
@@ -72,30 +72,30 @@ namespace rip::binary {
 
 			// These can probably be replaced by a recursive simplerfl traversal.
 			result_type visit_primitive(ucsl::math::Vector2& obj, const PrimitiveInfo<ucsl::math::Vector2>& info) {
-				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
+				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Vector3& obj, const PrimitiveInfo<ucsl::math::Vector3>& info) {
-				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
+				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Position& obj, const PrimitiveInfo<ucsl::math::Position>& info) {
-				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
+				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
 				return 0;
 			}
 
 			void load_vec4(ucsl::math::Vector4& obj) {
-				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
-				obj.w() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "w")));
+				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+				obj.w() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "w")));
 			}
 
 			result_type visit_primitive(ucsl::math::Vector4& obj, const PrimitiveInfo<ucsl::math::Vector4>& info) {
@@ -104,19 +104,19 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::math::Quaternion& obj, const PrimitiveInfo<ucsl::math::Quaternion>& info) {
-				obj.x() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "z")));
-				obj.w() = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "w")));
+				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+				obj.w() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "w")));
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Matrix34& obj, const PrimitiveInfo<ucsl::math::Matrix34>& info) {
-				assert(yyjson_arr_size(state.currentVal) == 16);
+				assert(yyjson_arr_size(state.currentVal) == 12);
 				size_t i, max;
 				yyjson_val* item;
 				yyjson_arr_foreach(state.currentVal, i, max, item) {
-					obj(i / 4, i % 4) = yyjson_get_real(item);
+					obj(i / 4, i % 4) = yyjson_get_num(item);
 				}
 				return 0;
 			}
@@ -126,7 +126,7 @@ namespace rip::binary {
 				size_t i, max;
 				yyjson_val* item;
 				yyjson_arr_foreach(state.currentVal, i, max, item) {
-					obj(i / 4, i % 4) = yyjson_get_real(item);
+					obj(i / 4, i % 4) = yyjson_get_num(item);
 				}
 				return 0;
 			}
@@ -140,10 +140,10 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::colors::Colorf& obj, const PrimitiveInfo<ucsl::colors::Colorf>& info) {
-				obj.r = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "r")));
-				obj.g = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "g")));
-				obj.b = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "b")));
-				obj.a = static_cast<float>(yyjson_get_real(yyjson_obj_get(state.currentVal, "a")));
+				obj.r = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "r")));
+				obj.g = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "g")));
+				obj.b = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "b")));
+				obj.a = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "a")));
 				return 0;
 			}
 
@@ -160,19 +160,27 @@ namespace rip::binary {
 			result_type visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
 				auto buffer = (const char**)addptr(&obj, 0x0);
 				auto allocator = (void**)addptr(&obj, 0x8);
-				visit_primitive(*buffer, PrimitiveInfo<const char*>{});
-				if (!strcmp("", *buffer))
+				if (yyjson_is_null(state.currentVal))
 					*buffer = nullptr;
+				else if (!strcmp("", yyjson_get_str(state.currentVal)))
+					*buffer = nullptr;
+				else
+					visit_primitive(*buffer, PrimitiveInfo<const char*>{});
 				*allocator = nullptr;
 				return 0;
 			}
 
 			result_type visit_primitive(const char*& obj, const PrimitiveInfo<const char*>& info) {
-				const char* str = yyjson_get_str(state.currentVal);
-				obj = (const char*)enqueue_block(strlen(str) + 1, 1, [str](opaque_obj* target) {
-					strcpy_s(reinterpret_cast<char*>(target), strlen(str) + 1, str);
-					return 0;
-				});
+				if (yyjson_is_null(state.currentVal))
+					obj = nullptr;
+				else {
+					const char* str = yyjson_get_str(state.currentVal);
+
+					enqueue_block(obj, [size = strlen(str) + 1]() { return BlockAllocationData{ size, 1 }; }, [str](const char* target) {
+						strcpy_s(const_cast<char*>(target), strlen(str) + 1, str);
+						return 0;
+					});
+				}
 				return 0;
 			}
 
@@ -205,14 +213,17 @@ namespace rip::binary {
 				auto length = (unsigned long long*)addptr(&arr.underlying, 0x8);
 				auto capacity = (unsigned long long*)addptr(&arr.underlying, 0x10);
 				auto allocator = (void**)addptr(&arr.underlying, 0x18);
-				*buffer = arrsize == 0 ? nullptr : enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
-					size_t i, max;
-					yyjson_val* item;
-					yyjson_arr_foreach (state.currentVal, i, max, item) {
-						with_val(item, [target, itemSize, i, f]() { return f(*addptr(target, i * itemSize)); });
-					}
-					return 0;
-				});
+				if (arrsize == 0)
+					*buffer = nullptr;
+				else
+					enqueue_block(*buffer, [info, arrsize]() { return BlockAllocationData{ arrsize * info.itemSize, info.itemAlignment }; }, [this, itemSize = info.itemSize, f](opaque_obj* target) {
+						size_t i, max;
+						yyjson_val* item;
+						yyjson_arr_foreach (state.currentVal, i, max, item) {
+							with_val(item, [target, itemSize, i, f]() { return f(*addptr(target, i * itemSize)); });
+						}
+						return 0;
+					});
 				*length = arrsize;
 				*capacity = arrsize;
 				*allocator = nullptr;
@@ -225,14 +236,17 @@ namespace rip::binary {
 				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
 				auto length = (unsigned long long*)addptr(&arr.underlying, 0x8);
 				auto capacity = (long long*)addptr(&arr.underlying, 0x10);
-				*buffer = arrsize == 0 ? nullptr : enqueue_block(arrsize * info.itemSize, info.itemAlignment, [this, itemSize = info.itemSize, f](opaque_obj* target) {
-					size_t i, max;
-					yyjson_val* item;
-					yyjson_arr_foreach (state.currentVal, i, max, item) {
-						with_val(item, [target, itemSize, i, f]() { return f(*addptr(target, i * itemSize)); });
-					}
-					return 0;
-				});
+				if (arrsize == 0)
+					*buffer = nullptr;
+				else
+					enqueue_block(*buffer, [info, arrsize]() { return BlockAllocationData{ arrsize * info.itemSize, info.itemAlignment }; }, [this, itemSize = info.itemSize, f](opaque_obj* target) {
+						size_t i, max;
+						yyjson_val* item;
+						yyjson_arr_foreach (state.currentVal, i, max, item) {
+							with_val(item, [target, itemSize, i, f]() { return f(*addptr(target, i * itemSize)); });
+						}
+						return 0;
+					});
 				*length = arrsize;
 				*capacity = arrsize;
 				return 0;
@@ -240,7 +254,10 @@ namespace rip::binary {
 
 			template<typename F, typename A, typename S>
 			result_type visit_pointer(opaque_obj*& obj, const PointerInfo<A, S>& info, F f) {
-				obj = yyjson_is_null(state.currentVal) ? nullptr : enqueue_block(info.getTargetSize(), info.getTargetAlignment(), [f](opaque_obj* target) { return f(*target); });
+				if (yyjson_is_null(state.currentVal))
+					obj = nullptr;
+				else
+					enqueue_block(obj, [info]() { return BlockAllocationData{ info.getTargetSize(), info.getTargetAlignment() }; }, [f](opaque_obj* target) { return f(*target); });
 				return 0;
 			}
 
@@ -283,13 +300,15 @@ namespace rip::binary {
 
 			template<typename F>
 			result_type visit_root(opaque_obj& obj, const RootInfo& info, F f) {
-				with_val(yyjson_doc_get_root(state.deserializer.doc), [f, this, &info]() {
-					enqueue_block(info.size, info.alignment, [f](opaque_obj* target) {
+				opaque_obj* ptr;
+				with_val(yyjson_doc_get_root(state.deserializer.doc), [f, this, &ptr, &info]() {
+					enqueue_block(ptr, [info]() { return BlockAllocationData{ info.size, info.alignment }; }, [f](opaque_obj* target) {
 						f(*target);
 						return 0;
 					});
 					return 0;
 				});
+				state.worker.processQueuedBlocks();
 				return 0;
 			}
 		};
@@ -298,7 +317,7 @@ namespace rip::binary {
 		struct OperationState {
 			JsonDeserializer& deserializer;
 			yyjson_val* currentVal{};
-			BlobWorker<opaque_obj*, Allocator, ImmediateBlobWorkerScheduler> worker{};
+			BlobWorker<opaque_obj*, Allocator, DeferredAllocationBlobWorkerScheduler> worker{};
 		};
 
 		using MeasureState = OperationState<HeapBlockAllocator<GameInterface, opaque_obj>>;
@@ -327,7 +346,6 @@ namespace rip::binary {
 			T* stub{};
 			ucsl::reflection::traversals::traversal<OperationBase<MeasureState>> measureOp{ measureState };
 			measureOp.operator()<T>(*stub, refl);
-			measureState.worker.processQueuedBlocks();
 			size_t size = measureState.worker.allocator.sizeRequired;
 
 			result = (opaque_obj*)GameInterface::AllocatorSystem::get_allocator()->Alloc(size, 16);
@@ -337,7 +355,6 @@ namespace rip::binary {
 
 			ucsl::reflection::traversals::traversal<OperationBase<WriteState>> writeOp{ writeState };
 			writeOp.operator()<T>(*(T*)result, refl);
-			writeState.worker.processQueuedBlocks();
 
 			return (T*)result;
 		}

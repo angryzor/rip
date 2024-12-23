@@ -18,11 +18,16 @@ std::map<std::string, Format> formatMap{
 std::map<std::string, ResourceType> resourceTypeMap{
 	{ "asm", ResourceType::ASM },
 	{ "gedit", ResourceType::GEDIT },
+	{ "map", ResourceType::MAP },
+	{ "path", ResourceType::PATH },
+	{ "material", ResourceType::MATERIAL },
 	{ "rfl", ResourceType::RFL },
 	{ "vat", ResourceType::VAT },
 	{ "fxcol", ResourceType::FXCOL },
 	{ "swif", ResourceType::SWIF },
 	{ "sobj", ResourceType::SOBJ },
+	{ "nxs", ResourceType::NXS },
+	{ "pcmodel", ResourceType::PCMODEL },
 };
 
 std::map<std::string, AddressingMode> addressingModeMap{
@@ -62,7 +67,7 @@ int main(int argc, char** argv) {
 	try {
 		config.validate();
 
-		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << " (" << addressingModeMapReverse[config.addressingMode] << " bit)..." << std::endl;
+		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << std::endl;
 		std::cerr << "Input file: " << config.inputFile.generic_string() << std::endl;
 		std::cerr << "Output file: " << config.getOutputFile().generic_string() << std::endl;
 

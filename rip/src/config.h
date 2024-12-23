@@ -14,11 +14,16 @@ enum class Format {
 enum class ResourceType {
 	ASM,
 	GEDIT,
+	MAP,
+	MATERIAL,
 	RFL,
 	VAT,
 	FXCOL,
 	SWIF,
 	SOBJ,
+	PCMODEL,
+	NXS,
+	PATH,
 };
 
 enum class AddressingMode {

@@ -69,9 +69,8 @@ namespace rip::binary {
 
 	template<typename AddrType>
 	class binary_istream {
-		fast_istream& stream;
-
 	protected:
+		fast_istream& stream;
 		size_t offset;
 
 	public:
@@ -117,9 +116,8 @@ namespace rip::binary {
 
 	template<typename AddrType, std::endian endianness = std::endian::native>
 	class binary_ostream {
-		fast_ostream& stream;
-
 	protected:
+		fast_ostream& stream;
 		size_t offset;
 
 	public:

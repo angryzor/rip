@@ -108,7 +108,7 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::math::Matrix44& obj, const PrimitiveInfo<ucsl::math::Matrix44>& info) {
-				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+				yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
 				for (size_t i = 0; i < obj.rows(); i++)
 					for (size_t j = 0; j < obj.cols(); j++)
 						yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));

@@ -22,7 +22,8 @@ namespace rip::binary {
 		// We could do a lot of work to roll back and instead store a larger buffer, but for now I'm just
 		// duplicating the data in that case, since it mostly happens with dangling pointers of empty MoveArrays.
 		struct DisambiguatedOffset {
-			opaque_obj*& ptr;
+			std::optional<opaque_obj*> resolved{};
+			std::vector<opaque_obj**> ptrs{};
 			//size_t bufferSize;
 		};
 
@@ -47,31 +48,50 @@ namespace rip::binary {
 
 				auto it = state.knownOffsets.find(off);
 				if (it != state.knownOffsets.end()) {
-					ptr = (T*&)it->second.ptr;
+					if (it->second.resolved.has_value())
+						ptr = (T*)it->second.resolved.value();
+					else
+						it->second.ptrs.push_back(&(opaque_obj*&)ptr);
 					return;
 				}
 
-				state.worker.enqueueBlock((opaque_obj*&)ptr, alignmentGetter, [this, off, processFunc](opaque_obj* target, size_t alignment) {
-					state.deserializer.backend.skip_padding(alignment);
-					//assert(backend.tellg() == offset);
+				state.knownOffsets.emplace(off, DisambiguatedOffset{ std::nullopt, { &(opaque_obj*&)ptr } });
 
-					size_t prevDbgStructStartLoc = dbgStructStartLoc;
-					void* prevStructAddr = currentStructAddr;
+				state.worker.enqueueBlock(
+					[this, off](opaque_obj* target) {
+						auto& disamb = state.knownOffsets.find(off)->second;
 
-					dbgStructStartLoc = 0;
-					currentStructAddr = nullptr;
+						for (opaque_obj** ptr : disamb.ptrs)
+							*ptr = target;
 
-					auto pos = state.deserializer.backend.tellg();
-					state.deserializer.backend.seekg(off);
-					processFunc(target);
-					state.deserializer.backend.seekg(pos);
+						disamb.resolved = target;
+						//disamb.ptrs.clear();
+					},
+					alignmentGetter,
+					[this, off, processFunc](opaque_obj* target, size_t alignment) {
+						state.deserializer.backend.skip_padding(alignment);
+						//assert(backend.tellg() == offset);
 
-					dbgStructStartLoc = prevDbgStructStartLoc;
-					currentStructAddr = prevStructAddr;
-					//assert(backend.tellg() == offset + size);
-				});
+						//std::cout << "Starting block at offset " << off << std::endl;
 
-				state.knownOffsets.emplace(off, DisambiguatedOffset{ (opaque_obj*&)ptr });
+						size_t prevDbgStructStartLoc = dbgStructStartLoc;
+						void* prevStructAddr = currentStructAddr;
+
+						dbgStructStartLoc = 0;
+						currentStructAddr = nullptr;
+
+						auto pos = state.deserializer.backend.tellg();
+						state.deserializer.backend.seekg(off);
+						processFunc(target);
+						state.deserializer.backend.seekg(pos);
+
+						dbgStructStartLoc = prevDbgStructStartLoc;
+						currentStructAddr = prevStructAddr;
+
+						//std::cout << "Ending block at offset " << off << std::endl;
+						//assert(backend.tellg() == offset + size);
+					}
+				);
 			}
 
 			template<typename T>
@@ -122,7 +142,18 @@ namespace rip::binary {
 			int visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
 				offset_t<opaque_obj> offset{};
 				state.deserializer.backend.read(offset);
-				obj = !offset.has_value() ? nullptr : state.knownOffsets[offset.value()].pointer;
+
+				if (!offset.has_value()) {
+					obj = nullptr;
+					return 0;
+				}
+
+				auto& known = state.knownOffsets[offset.value()];
+
+				if (known.resolved.has_value())
+					obj = known.resolved.value();
+				else
+					known.ptrs.push_back(&(opaque_obj*&)obj);
 				return 0;
 			}
 
@@ -149,10 +180,13 @@ namespace rip::binary {
 				state.deserializer.backend.read(*capacity);
 				state.deserializer.backend.read(*allocator);
 
-				enqueueBlock(*buffer, offset, [info, length]() { return BlockAllocationData{ *length * info.itemSize, info.itemAlignment }; }, [length, itemSize = info.itemSize, f](opaque_obj* target) {
-					for (size_t i = 0; i < *length; i++)
-						f(*addptr(target, i * itemSize));
-				});
+				if (*length == 0)
+					*buffer = nullptr;
+				else
+					enqueueBlock(*buffer, offset, [info, length]() { return BlockAllocationData{ *length * info.itemSize, info.itemAlignment }; }, [length, itemSize = info.itemSize, f](opaque_obj* target) {
+						for (size_t i = 0; i < *length; i++)
+							f(*addptr(target, i * itemSize));
+					});
 				return 0;
 			}
 
@@ -167,10 +201,13 @@ namespace rip::binary {
 				state.deserializer.backend.read(*length);
 				state.deserializer.backend.read(*capacity);
 
-				enqueueBlock(*buffer, offset, [info, length]() { return BlockAllocationData{ *length * info.itemSize, info.itemAlignment }; }, [length, itemSize = info.itemSize, f](opaque_obj* target) {
-					for (size_t i = 0; i < *length; i++)
-						f(*addptr(target, i * itemSize));
-				});
+				if (*length == 0)
+					*buffer = nullptr;
+				else
+					enqueueBlock(*buffer, offset, [info, length]() { return BlockAllocationData{ *length * info.itemSize, info.itemAlignment }; }, [length, itemSize = info.itemSize, f](opaque_obj* target) {
+						for (size_t i = 0; i < *length; i++)
+							f(*addptr(target, i * itemSize));
+					});
 				return 0;
 			}
 
@@ -178,6 +215,7 @@ namespace rip::binary {
 			int visit_pointer(opaque_obj*& obj, const PointerInfo<A, S>& info, F f) {
 				offset_t<opaque_obj> offset{};
 				state.deserializer.backend.read(offset);
+				//std::cout << "        Pointer here. Value is " << offset.value_or(0) << std::endl;
 				enqueueBlock(obj, offset, [info]() { return BlockAllocationData{ info.getTargetSize(), info.getTargetAlignment() }; }, [f](opaque_obj* target) {
 					f(*target);
 				});
@@ -202,6 +240,7 @@ namespace rip::binary {
 				state.deserializer.backend.skip_padding(info.alignment);
 
 				size_t typeStart = state.deserializer.backend.tellg();
+				//std::cout << "      Starting type at " << std::hex << typeStart << "; size is " << info.size << ", alignment is " << info.alignment << std::endl;
 
 				// Catch alignment issues.
 				if (currentStructAddr)
@@ -214,12 +253,16 @@ namespace rip::binary {
 				// Catch alignment issues.
 				if (currentStructAddr)
 					assert((state.deserializer.backend.tellg() - dbgStructStartLoc) == (reinterpret_cast<size_t>(&obj) + info.size - reinterpret_cast<size_t>(currentStructAddr)));
+				//std::cout << "      Ending type at " << std::hex << typeStart << "; size is " << info.size << ", alignment is " << info.alignment << std::endl;
 				return 0;
 			}
 
 			template<typename F>
 			int visit_field(opaque_obj& obj, const FieldInfo& info, F f) {
-				return f(obj);
+				//std::cout << "    Starting field " << info.name << std::endl;
+				f(obj);
+				//std::cout << "    Ending field " << info.name << std::endl;
+				return 0;
 			}
 
 			template<typename F>
@@ -233,6 +276,8 @@ namespace rip::binary {
 				size_t prevDbgStructStartLoc = dbgStructStartLoc;
 				void* prevStructAddr = currentStructAddr;
 
+				//std::cout << "  Starting structure " << info.name << std::endl;
+
 				dbgStructStartLoc = state.deserializer.backend.tellg();
 				currentStructAddr = &obj;
 
@@ -240,13 +285,16 @@ namespace rip::binary {
 
 				dbgStructStartLoc = prevDbgStructStartLoc;
 				currentStructAddr = prevStructAddr;
+
+				//std::cout << "  Ending structure " << info.name << std::endl;
+
 				return 0;
 			}
 
 			template<typename F>
 			int visit_root(opaque_obj& obj, const RootInfo& info, F f) {
 				opaque_obj* ptr;
-				enqueueBlock(ptr, offset_t<opaque_obj>{ 0 }, [info]() { return BlockAllocationData{ info.size, info.alignment }; }, [f](opaque_obj* target) {
+				enqueueBlock(ptr, offset_t<opaque_obj>{ state.deserializer.backend.tellg() }, [info]() { return BlockAllocationData{ info.size, info.alignment }; }, [f](opaque_obj* target) {
 					f(*target);
 				});
 				state.worker.processQueuedBlocks();
@@ -283,7 +331,6 @@ namespace rip::binary {
 
 			memset(result, 0, size);
 
-			backend.seekg(0);
 			ucsl::reflection::traversals::traversal<OperationBase<WriteState>> writeOp{ writeState };
 			writeOp.operator()<T>(*(T*)result, refl);
 
