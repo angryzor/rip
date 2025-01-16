@@ -48,10 +48,9 @@ namespace rip::binary {
 
 				auto it = state.knownOffsets.find(off);
 				if (it != state.knownOffsets.end()) {
+					it->second.ptrs.push_back(&(opaque_obj*&)ptr);
 					if (it->second.resolved.has_value())
 						ptr = (T*)it->second.resolved.value();
-					else
-						it->second.ptrs.push_back(&(opaque_obj*&)ptr);
 					return;
 				}
 
@@ -150,10 +149,9 @@ namespace rip::binary {
 
 				auto& known = state.knownOffsets[offset.value()];
 
+				known.ptrs.push_back(&(opaque_obj*&)obj);
 				if (known.resolved.has_value())
 					obj = known.resolved.value();
-				else
-					known.ptrs.push_back(&(opaque_obj*&)obj);
 				return 0;
 			}
 

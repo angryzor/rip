@@ -1,6 +1,7 @@
 #include "convert.h"
 #include <ucsl/resources/asm/v103.h>
 #include <ucsl/resources/fxcol/v1.h>
+#include <ucsl/resources/svcol/v1.h>
 #include <ucsl/resources/map/v1.h>
 #include <ucsl/resources/material/contexts.h>
 #include <ucsl/resources/object-world/v2.h>
@@ -15,8 +16,10 @@
 #include <ucsl/resources/path/v1.h>
 #include <ucsl/resources/path/v200.h>
 #include <ucsl/resources/pcmodel/v2.h>
+#include <ucsl/resources/master-level/v0.h>
 #include <ucsl-reflection/reflections/resources/asm/v103.h>
 #include <ucsl-reflection/reflections/resources/fxcol/v1.h>
+#include <ucsl-reflection/reflections/resources/svcol/v1.h>
 #include <ucsl-reflection/reflections/resources/map/v1.h>
 #include <ucsl-reflection/reflections/resources/material/contexts.h>
 #include <ucsl-reflection/reflections/resources/object-world/v2.h>
@@ -31,6 +34,7 @@
 #include <ucsl-reflection/reflections/resources/path/v1.h>
 #include <ucsl-reflection/reflections/resources/path/v200.h>
 #include <ucsl-reflection/reflections/resources/pcmodel/v2.h>
+#include <ucsl-reflection/reflections/resources/master-level/v0.h>
 #include <config.h>
 #include <io/load_input.h>
 #include <io/write_output.h>
@@ -99,6 +103,9 @@ namespace rip::cli::convert {
 		resource<ResourceType::FXCOL, "1",
 			version<"1", ucsl::resources::fxcol::v1::FxColData>
 		>,
+		resource<ResourceType::SVCOL, "1",
+			version<"1", ucsl::resources::svcol::v1::SvColData>
+		>,
 		resource<ResourceType::SWIF, "6",
 			version<"6", ucsl::resources::swif::v6::SRS_PROJECT>
 		>,
@@ -114,6 +121,9 @@ namespace rip::cli::convert {
 		>,
 		resource<ResourceType::PCMODEL, "2",
 			version<"2", ucsl::resources::pcmodel::v2::PointCloudModelData>
+		>,
+		resource<ResourceType::MASTER_LEVEL, "0",
+			version<"0", ucsl::resources::master_level::v0::MasterLevelData>
 		>
 	>;
 

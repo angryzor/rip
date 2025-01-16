@@ -37,6 +37,10 @@ namespace rip::binary {
 		size_t sizeRequired{};
 		std::vector<T*> live_objs{};
 
+		~HeapBlockAllocator() {
+			cleanup();
+		}
+
 		T* allocate(BlockAllocationData allocationData) {
 			size_t offset = align(sizeRequired, allocationData.alignment);
 			sizeRequired = offset + allocationData.size;

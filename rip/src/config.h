@@ -19,11 +19,13 @@ enum class ResourceType {
 	RFL,
 	VAT,
 	FXCOL,
+	SVCOL,
 	SWIF,
 	SOBJ,
 	PCMODEL,
 	NXS,
 	PATH,
+	MASTER_LEVEL,
 };
 
 enum class AddressingMode {

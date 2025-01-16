@@ -12,7 +12,7 @@ namespace rip::binary {
 	using namespace ucsl::reflection;
 	using namespace ucsl::reflection::traversals;
 
-	template<typename GameInterface>
+	template<typename GameInterface, bool arrayVectors = false>
 	class JsonDeserializer {
 		yyjson_doc* doc{};
 		const char* filename;
@@ -72,42 +72,88 @@ namespace rip::binary {
 
 			// These can probably be replaced by a recursive simplerfl traversal.
 			result_type visit_primitive(ucsl::math::Vector2& obj, const PrimitiveInfo<ucsl::math::Vector2>& info) {
-				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+				if constexpr (arrayVectors) {
+					assert(yyjson_arr_size(state.currentVal) == 2);
+					size_t i, max;
+					yyjson_val* item;
+					yyjson_arr_foreach(state.currentVal, i, max, item) {
+						obj(i, 0) = yyjson_get_num(item);
+					}
+				}
+				else {
+					obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+					obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+				}
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Vector3& obj, const PrimitiveInfo<ucsl::math::Vector3>& info) {
-				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+				if constexpr (arrayVectors) {
+					assert(yyjson_arr_size(state.currentVal) == 3);
+					size_t i, max;
+					yyjson_val* item;
+					yyjson_arr_foreach(state.currentVal, i, max, item) {
+						obj(i, 0) = yyjson_get_num(item);
+					}
+				}
+				else {
+					obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+					obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+					obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+				}
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Position& obj, const PrimitiveInfo<ucsl::math::Position>& info) {
-				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+				if constexpr (arrayVectors) {
+					assert(yyjson_arr_size(state.currentVal) == 3);
+					size_t i, max;
+					yyjson_val* item;
+					yyjson_arr_foreach(state.currentVal, i, max, item) {
+						obj(i, 0) = yyjson_get_num(item);
+					}
+				}
+				else {
+					obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+					obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+					obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+				}
 				return 0;
 			}
 
-			void load_vec4(ucsl::math::Vector4& obj) {
-				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
-				obj.w() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "w")));
-			}
-
 			result_type visit_primitive(ucsl::math::Vector4& obj, const PrimitiveInfo<ucsl::math::Vector4>& info) {
-				load_vec4(obj);
+				if constexpr (arrayVectors) {
+					assert(yyjson_arr_size(state.currentVal) == 4);
+					size_t i, max;
+					yyjson_val* item;
+					yyjson_arr_foreach(state.currentVal, i, max, item) {
+						obj(i, 0) = yyjson_get_num(item);
+					}
+				}
+				else {
+					obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+					obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+					obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+					obj.w() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "w")));
+				}
 				return 0;
 			}
 
 			result_type visit_primitive(ucsl::math::Quaternion& obj, const PrimitiveInfo<ucsl::math::Quaternion>& info) {
-				obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
-				obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
-				obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
-				obj.w() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "w")));
+				if constexpr (arrayVectors) {
+					assert(yyjson_arr_size(state.currentVal) == 4);
+					size_t i, max;
+					yyjson_val* item;
+					yyjson_arr_foreach(state.currentVal, i, max, item) {
+						obj.coeffs()(i, 0) = yyjson_get_num(item);
+					}
+				}
+				else {
+					obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+					obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+					obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+					obj.w() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "w")));
+				}
 				return 0;
 			}
 

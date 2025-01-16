@@ -6,45 +6,12 @@
 #include <ucsl/resources/object-world/v3.h>
 #include <ucsl/resources/sobj/v1.h>
 #include <ucsl-reflection/providers/rflclass.h>
+#include <rip/util/math.h>
 #include <rip/util/object-id-guids.h>
 #include <random>
+#include "./JsonReflections.h"
 
 namespace rip::hson {
-	namespace json_reflections {
-		struct Parameters {
-			std::optional<rfl::Object<rfl::Generic>> tags{};
-			rfl::ExtraFields<rfl::Generic> parameters{};
-		};
-
-		struct Object {
-			std::optional<std::string> id{};
-			std::optional<std::string> name{};
-			std::optional<std::string> parentId{};
-			std::optional<std::string> instanceOf{};
-			std::optional<std::string> type{};
-			std::optional<std::array<float, 3>> position{};
-			std::optional<std::array<float, 4>> rotation{};
-			std::optional<std::array<float, 3>> scale{};
-			std::optional<bool> isEditorVisible{};
-			std::optional<bool> isExcluded{};
-			std::optional<Parameters> parameters{};
-		};
-		struct Metadata {
-			std::string name{};
-			std::string author{};
-			std::string date{};
-			std::string version{};
-			std::string description{};
-		};
-
-		struct File {
-			rfl::Rename<"$schema", std::string> schema{};
-			unsigned int version{};
-			Metadata metadata{};
-			std::vector<Object> objects{};
-		};
-	}
-
 	inline void writeHSON(const std::string& filename, auto getObjects) {
 		std::time_t now = std::time(nullptr);
 		std::string date = std::asctime(std::localtime(&now));
@@ -63,26 +30,12 @@ namespace rip::hson {
 		}, YYJSON_WRITE_PRETTY_TWO_SPACES);
 	}
 
-	inline Eigen::Quaternionf eulerToQuat(const Eigen::Vector3f& vec) {
-		return Eigen::AngleAxisf(vec[1], Eigen::Vector3f::UnitY()) * Eigen::AngleAxisf(vec[0], Eigen::Vector3f::UnitX()) * Eigen::AngleAxisf(vec[2], Eigen::Vector3f::UnitZ());
-	}
-
-	inline Eigen::Vector3f matrixToEuler(const Eigen::Matrix3f& mat) {
-		auto absoluteEuler = mat.eulerAngles(1, 0, 2);
-
-		return { absoluteEuler[1], absoluteEuler[0], absoluteEuler[2] };
-	}
-
-	inline Eigen::Vector3f quatToEuler(const Eigen::Quaternionf& quat) {
-		return matrixToEuler(quat.toRotationMatrix());
-	}
-
 	// This is temporary. Cleaner would be to instead make a ReflectCppSerializer that generates an rfl::Generic, so that we can export to many formats.
 	template<typename GameInterface>
 	inline rfl::Object<rfl::Generic> getRflClassSerialization(void* obj, const typename GameInterface::RflSystem::RflClass* rflClass) {
 		yyjson_mut_doc* doc = yyjson_mut_doc_new(nullptr);
 
-		rip::binary::JsonSerializer serializer{ doc };
+		rip::binary::JsonSerializer<true> serializer{ doc };
 		yyjson_mut_val* json = serializer.serialize(obj, ucsl::reflection::providers::rflclass<GameInterface>::reflect(rflClass));
 
 		yyjson_mut_doc_set_root(doc, json);
@@ -112,7 +65,7 @@ namespace rip::hson {
 					tags[componentData->type] = getRflClassSerialization<GameInterface>(componentData->data, componentRflClass);
 				}
 
-				auto rotation = eulerToQuat(obj->localTransform.rotation);
+				auto rotation = util::eulerToQuat(obj->localTransform.rotation);
 
 				return json_reflections::Object{
 					.id = util::toGUID(obj->id),
@@ -146,7 +99,7 @@ namespace rip::hson {
 					tags[componentData->type] = getRflClassSerialization<GameInterface>(componentData->data, componentRflClass);
 				}
 
-				auto rotation = eulerToQuat(obj->localTransform.rotation);
+				auto rotation = util::eulerToQuat(obj->localTransform.rotation);
 
 				return json_reflections::Object{
 					.id = util::toGUID(obj->id),
@@ -198,7 +151,7 @@ namespace rip::hson {
 						});
 
 						for (auto& instance : obj->instances) {
-							auto rotation = eulerToQuat(instance.rotation);
+							auto rotation = util::eulerToQuat(instance.rotation);
 
 							result.push_back({
 								.id = util::toGUID(ucsl::objectids::ObjectIdV1{ mt() }),
@@ -210,7 +163,7 @@ namespace rip::hson {
 					}
 					else {
 						auto& instance = obj->instances[0];
-						auto rotation = eulerToQuat(instance.rotation);
+						auto rotation = util::eulerToQuat(instance.rotation);
 
 						result.push_back({
 							.id = id,

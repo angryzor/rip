@@ -28,6 +28,7 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "sobj", ResourceType::SOBJ },
 	{ "nxs", ResourceType::NXS },
 	{ "pcmodel", ResourceType::PCMODEL },
+	{ "masterlevel", ResourceType::MASTER_LEVEL },
 };
 
 std::map<std::string, AddressingMode> addressingModeMap{
@@ -70,6 +71,9 @@ int main(int argc, char** argv) {
 		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << std::endl;
 		std::cerr << "Input file: " << config.inputFile.generic_string() << std::endl;
 		std::cerr << "Output file: " << config.getOutputFile().generic_string() << std::endl;
+
+		if (config.getInputFormat() == Format::HSON)
+			throw new std::runtime_error{ "HSON input currently not yet supported." };
 
 		ucsl::reflection::game_interfaces::standalone::StandaloneGameInterface::boot();
 
