@@ -17,6 +17,7 @@
 #include <ucsl/resources/path/v200.h>
 #include <ucsl/resources/pcmodel/v2.h>
 #include <ucsl/resources/master-level/v0.h>
+#include <ucsl/resources/density-setting/v11.h>
 #include <ucsl-reflection/reflections/resources/asm/v103.h>
 #include <ucsl-reflection/reflections/resources/fxcol/v1.h>
 #include <ucsl-reflection/reflections/resources/svcol/v1.h>
@@ -35,6 +36,7 @@
 #include <ucsl-reflection/reflections/resources/path/v200.h>
 #include <ucsl-reflection/reflections/resources/pcmodel/v2.h>
 #include <ucsl-reflection/reflections/resources/master-level/v0.h>
+#include <ucsl-reflection/reflections/resources/density-setting/v11.h>
 #include <config.h>
 #include <io/load_input.h>
 #include <io/write_output.h>
@@ -124,6 +126,9 @@ namespace rip::cli::convert {
 		>,
 		resource<ResourceType::MASTER_LEVEL, "0",
 			version<"0", ucsl::resources::master_level::v0::MasterLevelData>
+		>,
+		resource<ResourceType::DENSITY_SETTING, "11",
+			version<"11", ucsl::resources::density_setting::v11::DensitySettingData>
 		>
 	>;
 

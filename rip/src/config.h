@@ -26,6 +26,7 @@ enum class ResourceType {
 	NXS,
 	PATH,
 	MASTER_LEVEL,
+	DENSITY_SETTING,
 };
 
 enum class AddressingMode {

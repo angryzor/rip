@@ -29,6 +29,7 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "nxs", ResourceType::NXS },
 	{ "pcmodel", ResourceType::PCMODEL },
 	{ "masterlevel", ResourceType::MASTER_LEVEL },
+	{ "densitysetting", ResourceType::DENSITY_SETTING },
 };
 
 std::map<std::string, AddressingMode> addressingModeMap{

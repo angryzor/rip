@@ -22,9 +22,13 @@ namespace rip::binary {
 		// We could do a lot of work to roll back and instead store a larger buffer, but for now I'm just
 		// duplicating the data in that case, since it mostly happens with dangling pointers of empty MoveArrays.
 		struct DisambiguatedOffset {
-			std::optional<opaque_obj*> resolved{};
+			struct Resolution {
+				opaque_obj* ptr;
+				size_t size;
+			};
+
+			std::optional<Resolution> resolved{};
 			std::vector<opaque_obj**> ptrs{};
-			//size_t bufferSize;
 		};
 
 		template<typename OpState>
@@ -40,33 +44,42 @@ namespace rip::binary {
 			OperationBase(OpState& state) : state{ state } {}
 
 			template<typename T>
-			void enqueueBlock(T*& ptr, offset_t<T> offset, auto alignmentGetter, auto processFunc) {
+			void enqueueBlock(T*& ptr, offset_t<T> offset, auto allocationDataGetter, auto processFunc) {
 				if (!offset.has_value())
 					return;
 
 				size_t off = offset.value();
 
 				auto it = state.knownOffsets.find(off);
-				if (it != state.knownOffsets.end()) {
+				if (it != state.knownOffsets.end())
 					it->second.ptrs.push_back(&(opaque_obj*&)ptr);
-					if (it->second.resolved.has_value())
-						ptr = (T*)it->second.resolved.value();
-					return;
-				}
-
-				state.knownOffsets.emplace(off, DisambiguatedOffset{ std::nullopt, { &(opaque_obj*&)ptr } });
+				else
+					state.knownOffsets.emplace(off, DisambiguatedOffset{ std::nullopt, { &(opaque_obj*&)ptr } });
 
 				state.worker.enqueueBlock(
-					[this, off](opaque_obj* target) {
+					[this, off, allocationDataGetter, &ptr]() {
+						auto it = state.knownOffsets.find(off);
+						if (!it->second.resolved.has_value())
+							return true;
+
+						auto& resolved = it->second.resolved.value();
+
+						if (resolved.size < allocationDataGetter().size)
+							return true;
+
+						ptr = (T*)resolved.ptr;
+
+						return false;
+					},
+					[this, off, allocationDataGetter](opaque_obj* target) {
 						auto& disamb = state.knownOffsets.find(off)->second;
 
 						for (opaque_obj** ptr : disamb.ptrs)
 							*ptr = target;
 
-						disamb.resolved = target;
-						//disamb.ptrs.clear();
+						disamb.resolved = { target, allocationDataGetter().size };
 					},
-					alignmentGetter,
+					allocationDataGetter,
 					[this, off, processFunc](opaque_obj* target, size_t alignment) {
 						state.deserializer.backend.skip_padding(alignment);
 						//assert(backend.tellg() == offset);
@@ -151,7 +164,7 @@ namespace rip::binary {
 
 				known.ptrs.push_back(&(opaque_obj*&)obj);
 				if (known.resolved.has_value())
-					obj = known.resolved.value();
+					obj = known.resolved.value().ptr;
 				return 0;
 			}
 

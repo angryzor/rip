@@ -70,7 +70,10 @@ namespace rip::binary {
 	public:
 		ImmediateBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
 
-		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
+		void enqueueBlock(auto guard, auto storeOffset, auto allocationDataGetter, auto processFunc) {
+			if (!guard())
+				return;
+
 			auto allocationData = allocationDataGetter();
 			T offset = allocator.allocate(allocationData);
 			storeOffset(offset);
@@ -95,7 +98,10 @@ namespace rip::binary {
 	public:
 		DeferredBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
 
-		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
+		void enqueueBlock(auto guard, auto storeOffset, auto allocationDataGetter, auto processFunc) {
+			if (!guard())
+				return;
+
 			auto allocationData = allocationDataGetter();
 			T offset = allocator.allocate(allocationData);
 			storeOffset(offset);
@@ -115,6 +121,7 @@ namespace rip::binary {
 	template<typename T, typename Allocator>
 	class DeferredAllocationBlobWorkerScheduler {
 		struct WorkQueueEntry {
+			std::function<bool()> guard;
 			std::function<void(T)> storeOffset;
 			std::function<BlockAllocationData()> allocationDataGetter;
 			std::function<void(T, size_t)> processFunc;
@@ -126,14 +133,17 @@ namespace rip::binary {
 	public:
 		DeferredAllocationBlobWorkerScheduler(Allocator& allocator) : allocator{ allocator } {}
 
-		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
-			workQueue.push(WorkQueueEntry{ storeOffset, allocationDataGetter, processFunc });
+		void enqueueBlock(auto guard, auto storeOffset, auto allocationDataGetter, auto processFunc) {
+			workQueue.push(WorkQueueEntry{ guard, storeOffset, allocationDataGetter, processFunc });
 		}
 
 		void processQueuedBlocks() {
 			while (!workQueue.empty()) {
 				auto chunk = workQueue.front();
 				workQueue.pop();
+
+				if (!chunk.guard())
+					continue;
 				
 				chunk.storeOffset((T)0xFAFAFAFA);
 				BlockAllocationData allocationData = chunk.allocationDataGetter();
@@ -171,7 +181,11 @@ namespace rip::binary {
 		}
 
 		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
-			scheduler.enqueueBlock(storeOffset, allocationDataGetter, processFunc);
+			enqueueBlock([]() { return true; }, storeOffset, allocationDataGetter, processFunc);
+		}
+
+		void enqueueBlock(auto guard, auto storeOffset, auto allocationDataGetter, auto processFunc) {
+			scheduler.enqueueBlock(guard, storeOffset, allocationDataGetter, processFunc);
 		}
 
 		void processQueuedBlocks() {
