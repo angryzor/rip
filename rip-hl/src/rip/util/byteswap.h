@@ -79,13 +79,7 @@ namespace rip::util {
 		byteswap_deep(value.z());
 		byteswap_deep(value.w());
 	}
-	template<> inline void byteswap_deep(ucsl::colors::Color8& value) noexcept {
-		byteswap_deep(value.r);
-		byteswap_deep(value.g);
-		byteswap_deep(value.b);
-		byteswap_deep(value.a);
-	}
-	template<> inline void byteswap_deep(ucsl::colors::Colorf& value) noexcept {
+	template<typename T, ucsl::colors::ChannelOrder order> inline void byteswap_deep(ucsl::colors::Color<T, order>& value) noexcept {
 		byteswap_deep(value.r);
 		byteswap_deep(value.g);
 		byteswap_deep(value.b);

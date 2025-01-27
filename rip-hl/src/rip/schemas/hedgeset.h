@@ -133,8 +133,8 @@ namespace rip::schemas::hedgeset {
 			if (type == "quaternion") return MemberType::QUATERNION;
 			if (type == "matrix34") return MemberType::MATRIX34;
 			if (type == "matrix44") return MemberType::MATRIX44;
-			if (type == "color8") return MemberType::COLOR_BYTE;
-			if (type == "colorf") return MemberType::COLOR_FLOAT;
+			if (type == "color8") return templ.format == "gedit_v3" ? MemberType::COLOR_BYTE_ABGR : MemberType::COLOR_BYTE_RGBA;
+			if (type == "colorf") return templ.format == "gedit_v3" ? MemberType::COLOR_FLOAT_ABGR : MemberType::COLOR_FLOAT_RGBA;
 			if (type == "string") return MemberType::STRING;
 			if (type == "object_reference") return templ.format == "gedit_v3" ? MemberType::OBJECT_ID_V2 : MemberType::OBJECT_ID_V1;
 			return MemberType::VOID;
@@ -384,12 +384,18 @@ namespace rip::schemas::hedgeset {
 			if (type == MemberType::QUATERNION) return { .type = "quaternion" };
 			if (type == MemberType::MATRIX34) return { .type = "matrix34" };
 			if (type == MemberType::MATRIX44) return { .type = "matrix44" };
-			if (type == MemberType::COLOR_BYTE) return { .type = "color8" };
-			if (type == MemberType::COLOR_FLOAT) return { .type = "colorf" };
+			if constexpr (GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::colors::Color8RGBA>)
+				if (type == MemberType::COLOR_BYTE_RGBA) return { .type = "color8" };
+			if constexpr (GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::colors::ColorfRGBA>)
+				if (type == MemberType::COLOR_FLOAT_RGBA) return { .type = "colorf" };
+			if constexpr (GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::colors::Color8ABGR>)
+				if (type == MemberType::COLOR_BYTE_ABGR) return { .type = "color8" };
+			if constexpr (GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::colors::ColorfABGR>)
+				if (type == MemberType::COLOR_FLOAT_ABGR) return { .type = "colorf" };
 			if (type == MemberType::STRING) return { .type = "string" };
-			if constexpr (GameInterface::RflSystem::TypeSet::supports_object_id_v1)
+			if constexpr (GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::objectids::ObjectIdV1>)
 				if (type == MemberType::OBJECT_ID_V1) return { .type = "object_reference" };
-			if constexpr (GameInterface::RflSystem::TypeSet::supports_object_id_v2)
+			if constexpr (GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::objectids::ObjectIdV2>)
 				if (type == MemberType::OBJECT_ID_V2) return { .type = "object_reference" };
 			assert(false && "unknown type");
 			return { .type = "unknown" };
@@ -565,9 +571,9 @@ namespace rip::schemas::hedgeset {
 	class hson_template_builder : public template_builder<GameInterface> {
 		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format != HSONFormat::GEDIT_V2, "HSON format must not be GEDIT_V2 if type system does not support old array");
 		static_assert(GameInterface::RflSystem::TypeSet::supports_old_array || format != HSONFormat::SOBJ_V1, "HSON format must not be SOBJ_V1 if type system does not support old array");
-		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v1 || format != HSONFormat::GEDIT_V2, "HSON format must not be GEDIT_V2 if type system does not support object ID v1");
-		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v1 || format != HSONFormat::SOBJ_V1, "HSON format must not be SOBJ_V1 if type system does not support object ID v1");
-		static_assert(GameInterface::RflSystem::TypeSet::supports_object_id_v2 || format != HSONFormat::GEDIT_V3, "HSON format must not be V3 if type system does not support object ID v2");
+		static_assert(GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::objectids::ObjectIdV1> || format != HSONFormat::GEDIT_V2, "HSON format must not be GEDIT_V2 if type system does not support object ID v1");
+		static_assert(GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::objectids::ObjectIdV1> || format != HSONFormat::SOBJ_V1, "HSON format must not be SOBJ_V1 if type system does not support object ID v1");
+		static_assert(GameInterface::RflSystem::TypeSet::template supports_primitive<ucsl::objectids::ObjectIdV2> || format != HSONFormat::GEDIT_V3, "HSON format must not be V3 if type system does not support object ID v2");
 
 		std::string get_object(const GameInterface::GameObjectClass& object) {
 			std::string name = object.GetName();

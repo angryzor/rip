@@ -157,7 +157,8 @@ namespace rip::binary {
 				return res;
 			}
 
-			result_type visit_primitive(ucsl::colors::Color8& obj, const PrimitiveInfo<ucsl::colors::Color8>& info) {
+			template<ucsl::colors::ChannelOrder order>
+			result_type visit_primitive(ucsl::colors::Color8<order>& obj, const PrimitiveInfo<ucsl::colors::Color8<order>>& info) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
 				yyjson_mut_obj_add_uint(serializer.doc, res, "r", obj.r);
 				yyjson_mut_obj_add_uint(serializer.doc, res, "g", obj.g);
@@ -166,7 +167,8 @@ namespace rip::binary {
 				return res;
 			}
 
-			result_type visit_primitive(ucsl::colors::Colorf& obj, const PrimitiveInfo<ucsl::colors::Colorf>& info) {
+			template<ucsl::colors::ChannelOrder order>
+			result_type visit_primitive(ucsl::colors::Colorf<order>& obj, const PrimitiveInfo<ucsl::colors::Colorf<order>>& info) {
 				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
 				yyjson_mut_obj_add_float(serializer.doc, res, "r", obj.r);
 				yyjson_mut_obj_add_float(serializer.doc, res, "g", obj.g);

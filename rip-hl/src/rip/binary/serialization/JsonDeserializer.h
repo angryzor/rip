@@ -177,7 +177,8 @@ namespace rip::binary {
 				return 0;
 			}
 
-			result_type visit_primitive(ucsl::colors::Color8& obj, const PrimitiveInfo<ucsl::colors::Color8>& info) {
+			template<ucsl::colors::ChannelOrder order>
+			result_type visit_primitive(ucsl::colors::Color8<order>& obj, const PrimitiveInfo<ucsl::colors::Color8<order>>& info) {
 				obj.r = static_cast<uint8_t>(yyjson_get_uint(yyjson_obj_get(state.currentVal, "r")));
 				obj.g = static_cast<uint8_t>(yyjson_get_uint(yyjson_obj_get(state.currentVal, "g")));
 				obj.b = static_cast<uint8_t>(yyjson_get_uint(yyjson_obj_get(state.currentVal, "b")));
@@ -185,7 +186,8 @@ namespace rip::binary {
 				return 0;
 			}
 
-			result_type visit_primitive(ucsl::colors::Colorf& obj, const PrimitiveInfo<ucsl::colors::Colorf>& info) {
+			template<ucsl::colors::ChannelOrder order>
+			result_type visit_primitive(ucsl::colors::Colorf<order>& obj, const PrimitiveInfo<ucsl::colors::Colorf<order>>& info) {
 				obj.r = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "r")));
 				obj.g = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "g")));
 				obj.b = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "b")));
