@@ -1,13 +1,13 @@
 #pragma once
-#include <ucsl/resources/swif/v6.h>
 #include <rip/binary/containers/swif/SWIF.h>
 #include <config.h>
 #include "InputFile.h"
 #include <fstream>
 
-class SWIFInputFile : public InputFile<ucsl::resources::swif::v6::SRS_PROJECT> {
+template<typename P>
+class SWIFInputFile : public InputFile<P> {
 	std::unique_ptr<uint8_t[]> fileData;
-	std::unique_ptr<rip::binary::containers::swif::v6::SWIFResolver> resolver;
+	std::unique_ptr<rip::binary::containers::swif::v1::SWIFResolver> resolver;
 
 public:
 	SWIFInputFile(const Config& config) {
@@ -19,10 +19,10 @@ public:
 		ifs.seekg(std::ios::beg);
 		ifs.read((char*)&fileData[0], fileSize);
 
-		resolver = std::make_unique<rip::binary::containers::swif::v6::SWIFResolver>(&fileData[0]);
+		resolver = std::make_unique<rip::binary::containers::swif::v1::SWIFResolver>(&fileData[0]);
 	}
 
-	virtual ucsl::resources::swif::v6::SRS_PROJECT* getData() override {
-		return resolver->getProject();
+	virtual P* getData() override {
+		return resolver->getProject<P>();
 	}
 };

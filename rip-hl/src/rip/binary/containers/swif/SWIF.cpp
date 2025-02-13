@@ -1,9 +1,8 @@
 #include <vector>
-#include <ucsl/resources/swif/v6.h>
 #include <rip/binary/stream.h>
 #include "SWIF.h"
 
-namespace rip::binary::containers::swif::v6 {
+namespace rip::binary::containers::swif::v1 {
 	SWIFSerializer::swif_ostream::swif_ostream(SWIFSerializer& serializer) : binary_ostream<size_t>{ serializer.rawStream, 0 }, serializer { serializer }
 	{
 	}
@@ -20,7 +19,7 @@ namespace rip::binary::containers::swif::v6 {
 		writeAddressResolutionChunk();
 		writeEndChunk();
 
-		ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER header{};
+		rip::binary::containers::swif::v1::SRS_BINARY_FILE_HEADER_CHUNK_HEADER header{};
 		header.chunkCount = chunkCount;
 		header.chunksStart = static_cast<unsigned int>(chunksStart);
 		header.chunksSize = static_cast<unsigned int>(chunksEnd - chunksStart);
@@ -33,7 +32,7 @@ namespace rip::binary::containers::swif::v6 {
 
 	void SWIFSerializer::writeBinaryFileHeaderChunk() {
 		writeChunk(SWIF, [&]() {
-			stream.write(ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER{});
+			stream.write(rip::binary::containers::swif::v1::SRS_BINARY_FILE_HEADER_CHUNK_HEADER{});
 		});
 	}
 
@@ -41,7 +40,7 @@ namespace rip::binary::containers::swif::v6 {
 		addressResolutionChunkOffset = stream.tellp();
 
 		writeChunk(SOF0, [&]() {
-			ucsl::resources::swif::v6::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER header{};
+			rip::binary::containers::swif::v1::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER header{};
 			header.addressToResolveCount = static_cast<unsigned int>(addressLocations.size());
 			header.isResolved = 0;
 
@@ -55,29 +54,16 @@ namespace rip::binary::containers::swif::v6 {
 		writeChunk(SEND, [&]() {});
 	}
 
-
-	SWIFResolver::SWIFResolver(void* file_) : file{ static_cast<ucsl::resources::swif::v6::SRS_CHUNK_HEADER*>(file_) } {
+	SWIFResolver::SWIFResolver(void* file_) : file{ static_cast<rip::binary::containers::swif::v1::SRS_CHUNK_HEADER*>(file_) } {
 		resolveAddresses();
-	}
-
-	template<typename F>
-	inline void SWIFResolver::forEachChunk(F f)
-	{
-		// Note: SRS_BINARY_FILE_HEADER_CHUNK_HEADER is always the first chunk.
-		ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER* binaryFileHeader = (ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER*)&file[1];
-
-		auto* chunk = addptr(&file[1], file->chunkSize);
-
-		for (unsigned int i = 0; i < binaryFileHeader->chunkCount; i++, chunk = addptr(&chunk[1], chunk->chunkSize))
-			f(chunk);
 	}
 
 	void SWIFResolver::resolveAddresses()
 	{
 		// Note: SRS_BINARY_FILE_HEADER_CHUNK_HEADER is always the first chunk.
-		ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER* binaryFileHeader = (ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER*)&file[1];
-		ucsl::resources::swif::v6::SRS_CHUNK_HEADER* addressResolutionChunk = (ucsl::resources::swif::v6::SRS_CHUNK_HEADER*)addptr(file, binaryFileHeader->addressResolutionHeaderOffset);
-		ucsl::resources::swif::v6::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER* addressResolutionChunkHeader = (ucsl::resources::swif::v6::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER*)&addressResolutionChunk[1];
+		rip::binary::containers::swif::v1::SRS_BINARY_FILE_HEADER_CHUNK_HEADER* binaryFileHeader = (rip::binary::containers::swif::v1::SRS_BINARY_FILE_HEADER_CHUNK_HEADER*)&file[1];
+		rip::binary::containers::swif::v1::SRS_CHUNK_HEADER* addressResolutionChunk = (rip::binary::containers::swif::v1::SRS_CHUNK_HEADER*)addptr(file, binaryFileHeader->addressResolutionHeaderOffset);
+		rip::binary::containers::swif::v1::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER* addressResolutionChunkHeader = (rip::binary::containers::swif::v1::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER*)&addressResolutionChunk[1];
 
 		if (addressResolutionChunkHeader->isResolved != 0)
 			return;
@@ -92,20 +78,5 @@ namespace rip::binary::containers::swif::v6 {
 		}
 
 		addressResolutionChunkHeader->isResolved = 1;
-	}
-
-	ucsl::resources::swif::v6::SRS_PROJECT* SWIFResolver::getProject()
-	{
-		ucsl::resources::swif::v6::SRS_PROJECT* result{};
-
-		forEachChunk([&result](ucsl::resources::swif::v6::SRS_CHUNK_HEADER* chunk) {
-			if (chunk->magic == SWPR) {
-				auto projHeader = (ucsl::resources::swif::v6::SRS_PROJECT_CHUNK_HEADER*)&chunk[1];
-
-				result = (ucsl::resources::swif::v6::SRS_PROJECT*)addptr(chunk, projHeader->startOffset);
-			}
-		});
-
-		return result;
 	}
 }

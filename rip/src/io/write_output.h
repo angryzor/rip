@@ -40,8 +40,8 @@ void writeOutputFileOther(const Config& config, T* data) {
 	case Format::BINARY: {
 		std::ofstream ofs{ config.getOutputFile(), std::ios::binary };
 
-		if constexpr (std::is_same_v<T, ucsl::resources::swif::v6::SRS_PROJECT>) {
-			rip::binary::containers::swif::v6::SWIFSerializer serializer{ ofs };
+		if constexpr (std::is_same_v<T, ucsl::resources::swif::v5::SRS_PROJECT> || std::is_same_v<T, ucsl::resources::swif::v6::SRS_PROJECT>) {
+			rip::binary::containers::swif::v1::SWIFSerializer serializer{ ofs };
 			serializer.serialize<GI>(*data);
 		}
 		else if constexpr (std::is_same_v<T, ucsl::resources::material::contexts::ContextsData>) {
@@ -75,7 +75,7 @@ void writeOutputFileOther(const Config& config, T* data) {
 
 		yyjson_write_err err;
 		std::string filename = config.getOutputFile().generic_string();
-		yyjson_mut_write_file(filename.c_str(), doc, YYJSON_WRITE_PRETTY_TWO_SPACES, nullptr, &err);
+		yyjson_mut_write_file(filename.c_str(), doc, YYJSON_WRITE_PRETTY_TWO_SPACES | YYJSON_WRITE_ALLOW_INF_AND_NAN | YYJSON_WRITE_ALLOW_INVALID_UNICODE, nullptr, &err);
 
 		if (err.code != YYJSON_WRITE_SUCCESS) {
 			std::cerr << "Error writing json: " << err.msg << std::endl;

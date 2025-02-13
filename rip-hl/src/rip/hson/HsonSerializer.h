@@ -27,7 +27,7 @@ namespace rip::hson {
 				.description = "Converted by Restoration Issue Pocketknife.",
 			},
 			.objects = getObjects(),
-		}, YYJSON_WRITE_PRETTY_TWO_SPACES);
+		}, YYJSON_WRITE_PRETTY_TWO_SPACES | YYJSON_WRITE_ALLOW_INF_AND_NAN | YYJSON_WRITE_ALLOW_INVALID_UNICODE);
 	}
 
 	// This is temporary. Cleaner would be to instead make a ReflectCppSerializer that generates an rfl::Generic, so that we can export to many formats.
@@ -60,19 +60,20 @@ namespace rip::hson {
 				rfl::Object<rfl::Generic> tags{};
 				
 				for (auto* componentData : obj->componentData) {
-					auto* componentRflClass = GameInterface::GameObjectSystem::GetInstance()->goComponentRegistry->GetComponentInformationByName(obj->gameObjectClass)->GetSpawnerDataClass();
+					auto* componentRflClass = GameInterface::GameObjectSystem::GetInstance()->goComponentRegistry->GetComponentInformationByName(componentData->type)->GetSpawnerDataClass();
 
 					tags[componentData->type] = getRflClassSerialization<GameInterface>(componentData->data, componentRflClass);
 				}
 
-				auto rotation = util::eulerToQuat(obj->localTransform.rotation);
+				auto position = obj->parentID.id != 0 ? obj->localTransform.position : obj->transform.position;
+				auto rotation = util::eulerToQuat(obj->parentID.id != 0 ? obj->localTransform.rotation : obj->transform.rotation);
 
 				return json_reflections::Object{
 					.id = util::toGUID(obj->id),
 					.name = std::string{ obj->name },
-					.parentId = obj->id.id != 0 ? std::make_optional(util::toGUID(obj->parentID)) : std::nullopt,
+					.parentId = obj->parentID.id != 0 ? std::make_optional(util::toGUID(obj->parentID)) : std::nullopt,
 					.type = std::string{ obj->gameObjectClass },
-					.position = std::array<float, 3>{ obj->localTransform.position.x(), obj->localTransform.position.y(), obj->localTransform.position.z() },
+					.position = std::array<float, 3>{ position.x(), position.y(), position.z() },
 					.rotation = std::array<float, 4>{ rotation.x(), rotation.y(), rotation.z(), rotation.w() },
 					.parameters = json_reflections::Parameters{
 						.tags = tags,
@@ -94,19 +95,20 @@ namespace rip::hson {
 				rfl::Object<rfl::Generic> tags{};
 
 				for (auto* componentData : obj->componentData) {
-					auto* componentRflClass = GameInterface::GameObjectSystem::GetInstance()->goComponentRegistry->GetComponentInformationByName(obj->gameObjectClass)->GetSpawnerDataClass();
+					auto* componentRflClass = GameInterface::GameObjectSystem::GetInstance()->goComponentRegistry->GetComponentInformationByName(componentData->type)->GetSpawnerDataClass();
 
 					tags[componentData->type] = getRflClassSerialization<GameInterface>(componentData->data, componentRflClass);
 				}
 
-				auto rotation = util::eulerToQuat(obj->localTransform.rotation);
+				auto position = obj->parentID.groupId != 0 || obj->parentID.objectId != 0 ? obj->localTransform.position : obj->transform.position;
+				auto rotation = util::eulerToQuat(obj->parentID.groupId != 0 || obj->parentID.objectId != 0 ? obj->localTransform.rotation : obj->transform.rotation);
 
 				return json_reflections::Object{
 					.id = util::toGUID(obj->id),
 					.name = std::string{ obj->name },
 					.parentId = obj->parentID.groupId != 0 || obj->parentID.objectId != 0 ? std::make_optional(util::toGUID(obj->parentID)) : std::nullopt,
 					.type = std::string{ obj->gameObjectClass },
-					.position = std::array<float, 3>{ obj->localTransform.position.x(), obj->localTransform.position.y(), obj->localTransform.position.z() },
+					.position = std::array<float, 3>{ position.x(), position.y(), position.z() },
 					.rotation = std::array<float, 4>{ rotation.x(), rotation.y(), rotation.z(), rotation.w() },
 					.parameters = json_reflections::Parameters{
 						.tags = tags,

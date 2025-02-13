@@ -5,6 +5,8 @@
 #include <ucsl/resources/path/v1.h>
 #include <ucsl/resources/sobj/v1.h>
 #include <ucsl/resources/nxs/v1.h>
+#include <ucsl/resources/swif/v5.h>
+#include <ucsl/resources/swif/v6.h>
 #include <config.h>
 #include "BinaryInputFile.h"
 #include "MirageInputFile.h"
@@ -15,8 +17,8 @@ template<typename T>
 InputFile<T>* loadInputFile(const Config& config) {
 	switch (config.getInputFormat()) {
 	case Format::BINARY:
-		if constexpr (std::is_same_v<T, ucsl::resources::swif::v6::SRS_PROJECT>)
-			return new SWIFInputFile{ config };
+		if constexpr (std::is_same_v<T, ucsl::resources::swif::v5::SRS_PROJECT> || std::is_same_v<T, ucsl::resources::swif::v6::SRS_PROJECT>)
+			return new SWIFInputFile<T>{ config };
 		else if constexpr (std::is_same_v<T, ucsl::resources::map::v1::MapData<GI::AllocatorSystem>>)
 			return new BinaryInputFileV1<T, size_t>{ config };
 		else if constexpr (std::is_same_v<T, ucsl::resources::sobj::v1::SetObjectData<GI::AllocatorSystem>>)

@@ -27,6 +27,7 @@ enum class ResourceType {
 	PATH,
 	MASTER_LEVEL,
 	DENSITY_SETTING,
+	AISM,
 };
 
 enum class AddressingMode {

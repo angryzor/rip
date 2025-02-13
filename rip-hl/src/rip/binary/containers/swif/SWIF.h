@@ -3,20 +3,51 @@
 #include <simple-reflection/simple-reflection.h>
 #include <ucsl-reflection/providers/simplerfl.h>
 #include <rip/binary/serialization/ReflectionSerializer.h>
+#include <rip/binary/stream.h>
+#include <rip/util/byteswap.h>
 
-namespace rip::binary::containers::swif::v6 {
+namespace rip::binary::containers::swif::v1 {
 	static thread_local unsigned int gTextureListCount;
+	template<typename T>
 	struct TextureListArray {};
 
-	using TextureListArrayRefl = ::simplerfl::dynamic_carray<ucsl::resources::swif::v6::SRS_TEXTURELIST, int, [](const int& parent) -> size_t { return gTextureListCount; }>;
+	inline size_t GetTextureListCount(const int& parent) { return gTextureListCount; }
+	template<typename T> using TextureListArrayRefl = ::simplerfl::dynamic_carray<T, int, GetTextureListCount>;
+
+    struct SRS_CHUNK_HEADER {
+        unsigned int magic;
+        unsigned int chunkSize;
+    };
+
+    struct SRS_BINARY_FILE_HEADER_CHUNK_HEADER {
+        unsigned int chunkCount;
+        unsigned int chunksStart;
+        unsigned int chunksSize;
+        unsigned int addressResolutionHeaderOffset;
+        unsigned int revision;
+    };
+
+    struct SRS_TEXTURELIST_CHUNK_HEADER {
+        unsigned int startOffset;
+        unsigned int textureListCount;
+    };
+
+    struct SRS_PROJECT_CHUNK_HEADER {
+        unsigned int startOffset;
+    };
+
+    struct SRS_ADDRESS_RESOLUTION_CHUNK_HEADER {
+        unsigned int addressToResolveCount;
+        unsigned int isResolved; // 0 if not, 1 if yes
+    };
 }
 
 namespace simplerfl {
-	template<> struct canonical<rip::binary::containers::swif::v6::TextureListArray> { using type = rip::binary::containers::swif::v6::TextureListArrayRefl; };
+	template<typename T> struct canonical<rip::binary::containers::swif::v1::TextureListArray<T>> { using type = rip::binary::containers::swif::v1::TextureListArrayRefl<T>; };
 }
 
 namespace rip::util {
-	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_BINARY_FILE_HEADER_CHUNK_HEADER& value) noexcept {
+	template<> inline void byteswap_deep(rip::binary::containers::swif::v1::SRS_BINARY_FILE_HEADER_CHUNK_HEADER& value) noexcept {
 		byteswap_deep(value.chunkCount);
 		byteswap_deep(value.chunksStart);
 		byteswap_deep(value.chunksSize);
@@ -25,27 +56,27 @@ namespace rip::util {
 		byteswap_deep(value.addressResolutionHeaderOffset);
 	}
 
-	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER& value) noexcept {
+	template<> inline void byteswap_deep(rip::binary::containers::swif::v1::SRS_ADDRESS_RESOLUTION_CHUNK_HEADER& value) noexcept {
 		byteswap_deep(value.addressToResolveCount);
 		byteswap_deep(value.isResolved);
 	}
 
-	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_CHUNK_HEADER& value) noexcept {
+	template<> inline void byteswap_deep(rip::binary::containers::swif::v1::SRS_CHUNK_HEADER& value) noexcept {
 		byteswap_deep(value.magic);
 		byteswap_deep(value.chunkSize);
 	}
 
-	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_TEXTURELIST_CHUNK_HEADER& value) noexcept {
+	template<> inline void byteswap_deep(rip::binary::containers::swif::v1::SRS_TEXTURELIST_CHUNK_HEADER& value) noexcept {
 		byteswap_deep(value.startOffset);
 		byteswap_deep(value.textureListCount);
 	}
 
-	template<> inline void byteswap_deep(ucsl::resources::swif::v6::SRS_PROJECT_CHUNK_HEADER& value) noexcept {
+	template<> inline void byteswap_deep(rip::binary::containers::swif::v1::SRS_PROJECT_CHUNK_HEADER& value) noexcept {
 		byteswap_deep(value.startOffset);
 	}
 }
 
-namespace rip::binary::containers::swif::v6 {
+namespace rip::binary::containers::swif::v1 {
 	static constexpr const unsigned int SWIF = 0x46495753;
 	static constexpr const unsigned int SWTL = 0x4C545753;
 	static constexpr const unsigned int SWPR = 0x52505753;
@@ -87,7 +118,7 @@ namespace rip::binary::containers::swif::v6 {
 		void writeChunk(unsigned int magic, F&& writeFunc) {
 			size_t start = stream.tellp();
 
-			ucsl::resources::swif::v6::SRS_CHUNK_HEADER chunkHeader{};
+			rip::binary::containers::swif::v1::SRS_CHUNK_HEADER chunkHeader{};
 			chunkHeader.magic = magic;
 			chunkHeader.chunkSize = 0;
 
@@ -114,12 +145,12 @@ namespace rip::binary::containers::swif::v6 {
 
 		void writeBinaryFileHeaderChunk();
 
-		template<typename GameInterface>
-		void writeTextureListChunk(ucsl::resources::swif::v6::SRS_TEXTURELIST* textureLists, size_t textureListCount) {
+		template<typename GameInterface, typename T>
+		void writeTextureListChunk(T* textureLists, size_t textureListCount) {
 			writeMainChunk(SWTL, [&]() {
-				TextureListArray& textureListArr{ *reinterpret_cast<TextureListArray*>(textureLists) };
+				TextureListArray<T>& textureListArr{ *reinterpret_cast<TextureListArray<T>*>(textureLists) };
 
-				ucsl::resources::swif::v6::SRS_TEXTURELIST_CHUNK_HEADER header{};
+				rip::binary::containers::swif::v1::SRS_TEXTURELIST_CHUNK_HEADER header{};
 				header.startOffset = 16;
 				header.textureListCount = static_cast<unsigned int>(textureListCount);
 
@@ -130,10 +161,10 @@ namespace rip::binary::containers::swif::v6 {
 			});
 		}
 
-		template<typename GameInterface>
-		void writeProjectChunk(ucsl::resources::swif::v6::SRS_PROJECT& project) {
+		template<typename GameInterface, typename P>
+		void writeProjectChunk(P& project) {
 			writeMainChunk(SWPR, [&]() {
-				ucsl::resources::swif::v6::SRS_PROJECT_CHUNK_HEADER header{};
+				rip::binary::containers::swif::v1::SRS_PROJECT_CHUNK_HEADER header{};
 				header.startOffset = 16;
 
 				stream.write(header);
@@ -148,22 +179,45 @@ namespace rip::binary::containers::swif::v6 {
 		SWIFSerializer(std::ostream& stream);
 		~SWIFSerializer();
 
-		template<typename GameInterface>
-		void serialize(ucsl::resources::swif::v6::SRS_PROJECT& project) {
+		template<typename GameInterface, typename P>
+		void serialize(P& project) {
 			writeTextureListChunk<GameInterface>(project.textureLists, project.textureListCount);
 			writeProjectChunk<GameInterface>(project);
 		}
 	};
 
 	class SWIFResolver {
-		ucsl::resources::swif::v6::SRS_CHUNK_HEADER* file;
+		rip::binary::containers::swif::v1::SRS_CHUNK_HEADER* file;
+
+		void resolveAddresses();
 
 		template<typename F>
-		void forEachChunk(F f);
-		void resolveAddresses();
+		inline void forEachChunk(F f) {
+			// Note: SRS_BINARY_FILE_HEADER_CHUNK_HEADER is always the first chunk.
+			rip::binary::containers::swif::v1::SRS_BINARY_FILE_HEADER_CHUNK_HEADER* binaryFileHeader = (rip::binary::containers::swif::v1::SRS_BINARY_FILE_HEADER_CHUNK_HEADER*)&file[1];
+
+			auto* chunk = addptr(&file[1], file->chunkSize);
+
+			for (unsigned int i = 0; i < binaryFileHeader->chunkCount; i++, chunk = addptr(&chunk[1], chunk->chunkSize))
+				f(chunk);
+		}
 
 	public:
 		SWIFResolver(void* file);
-		ucsl::resources::swif::v6::SRS_PROJECT* getProject();
+
+		template<typename P>
+		inline P* getProject() {
+			P* result{};
+
+			forEachChunk([&result](rip::binary::containers::swif::v1::SRS_CHUNK_HEADER* chunk) {
+				if (chunk->magic == SWPR) {
+					auto projHeader = (rip::binary::containers::swif::v1::SRS_PROJECT_CHUNK_HEADER*)&chunk[1];
+
+					result = (P*)addptr(chunk, projHeader->startOffset);
+				}
+			});
+
+			return result;
+		}
 	};
 }

@@ -17,6 +17,7 @@ std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".pcmodel", ResourceType::PCMODEL },
 	{ ".mlevel", ResourceType::MASTER_LEVEL },
 	{ ".densitysetting", ResourceType::DENSITY_SETTING },
+	{ ".aism", ResourceType::AISM },
 };
 
 auto extByResourceType = reverse_map(resourceTypeByExt);
