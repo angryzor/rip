@@ -21,7 +21,7 @@ foreach(RIP_RESOURCE IN LISTS RIP_RESOURCES)
     configure_file(convert-impl.in.cpp convert-${RIP_RESOURCE}.cpp)
 endforeach()
 
-list(TRANSFORM RIP_RESOURCES PREPEND ${CMAKE_BINARY_DIR}/rip/src/convert-)
+list(TRANSFORM RIP_RESOURCES PREPEND ${CMAKE_CURRENT_BINARY_DIR}/convert-)
 list(TRANSFORM RIP_RESOURCES APPEND .cpp)
 
 target_sources(rip
