@@ -93,7 +93,19 @@ namespace rip::binary {
 			}
 
 			int visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
-				serializer.backend.write(obj == nullptr ? offset_t<opaque_obj>{} : offset_t<opaque_obj>{ serializer.knownPtrs[obj].offset });
+				if (obj == nullptr)
+					serializer.backend.write(offset_t<opaque_obj>{});
+				else if (serializer.knownPtrs.contains(obj))
+					serializer.backend.write(offset_t<opaque_obj>{ serializer.knownPtrs[obj].offset });
+				else {
+					for (auto& item : serializer.knownPtrs) {
+						if (obj >= item.first && obj < addptr(item.first, item.second.bufferSize)) {
+							serializer.backend.write(offset_t<opaque_obj>{ item.second.offset + (reinterpret_cast<size_t>(obj) - reinterpret_cast<size_t>(item.first)) });
+							return 0;
+						}
+					}
+					assert(false && "cannot find backreference");
+				}
 				return 0;
 			}
 
