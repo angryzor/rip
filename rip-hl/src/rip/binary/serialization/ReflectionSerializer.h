@@ -62,7 +62,7 @@ namespace rip::binary {
 
 			template<typename T, std::enable_if_t<!std::is_fundamental_v<T>, bool> = true>
 			int visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
-				serializer.backend.write<T>(obj);
+				serializer.backend.template write<T>(obj);
 				return 0;
 			}
 
