@@ -6,18 +6,28 @@
 #include <ucsl-reflection/opaque.h>
 #include <rip/binary/types.h>
 #include "BlobWorker.h"
-#include "PointerDisambiguationStore.h"
 #include <iostream>
 
 namespace rip::binary {
 	using namespace ucsl::reflection;
 	using namespace ucsl::reflection::traversals;
 
-	template<typename Backend>
-	class ReflectionSerializer {
-		Backend& backend;
+	template<typename Backend, typename Stream>
+	class Serializer {
+		Backend backend;
 
-		SerializationPointerDisambiguationStore<size_t> ptrDisambiguationStore{};
+		using ReferenceType = typename Backend::ReferenceType;
+
+		// We keep the buffer size as well, since sometimes an earlier reference serialized a smaller slice
+		// of the buffer, and in that case we can't simply point back to this already stored version.
+		// We could do a lot of work to roll back and instead store a larger buffer, but for now I'm just
+		// duplicating the data in that case, since it mostly happens with dangling pointers of empty MoveArrays.
+		struct DisambiguatedPointer {
+			ReferenceType reference;
+			size_t bufferSize;
+		};
+
+		std::map<const void*, DisambiguatedPointer> knownPtrs{};
 
 		class SerializeChunk {
 		public:
@@ -36,8 +46,9 @@ namespace rip::binary {
 				if (ptr == nullptr)
 					return offset_t<T>{};
 
-				if (auto ref = serializer.ptrDisambiguationStore.get_reference(ptr, bufferSize))
-					return ref.value();
+				auto it = serializer.knownPtrs.find(ptr);
+				if (it != serializer.knownPtrs.end() && bufferSize <= it->second.bufferSize)
+					return it->second.offset;
 
 				size_t offset = worker.enqueueBlock(bufferSize, alignment, [this, bufferSize, processFunc](size_t offset, size_t alignment) {
 					serializer.backend.write_padding(alignment);
@@ -47,9 +58,7 @@ namespace rip::binary {
 
 					assert(serializer.backend.tellp() == offset + bufferSize);
 				});
-
-				serializer.ptrDisambiguationStore.set_reference(ptr, bufferSize, offset);
-
+				serializer.knownPtrs[ptr] = { offset, bufferSize };
 				return offset;
 			}
 
@@ -66,7 +75,7 @@ namespace rip::binary {
 			}
 
 			void write_string(const char* obj) {
-				if constexpr (Backend::hasNativeStrings)
+				if constexpr (Stream::hasNativeStrings)
 					serializer.backend.write(obj);
 				else
 					serializer.backend.write(obj == nullptr ? offset_t<char>{} : enqueueBlock(obj, strlen(obj) + 1, 1, [this, obj]() {
@@ -88,10 +97,17 @@ namespace rip::binary {
 			int visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
 				if (obj == nullptr)
 					serializer.backend.write(offset_t<opaque_obj>{});
-				else if (auto ref = serializer.ptrDisambiguationStore.get_reference(obj, 0))
-					serializer.backend.write(offset_t<opaque_obj>{ ref.value() });
-				else
+				else if (serializer.knownPtrs.contains(obj))
+					serializer.backend.write(offset_t<opaque_obj>{ serializer.knownPtrs[obj].offset });
+				else {
+					for (auto& item : serializer.knownPtrs) {
+						if (obj >= item.first && obj < addptr(item.first, item.second.bufferSize)) {
+							serializer.backend.write(offset_t<opaque_obj>{ item.second.offset + (reinterpret_cast<size_t>(obj) - reinterpret_cast<size_t>(item.first)) });
+							return 0;
+						}
+					}
 					assert(false && "cannot find backreference");
+				}
 				return 0;
 			}
 
@@ -190,9 +206,6 @@ namespace rip::binary {
 				dbgStructStartLoc = serializer.backend.tellp();
 				currentStructAddr = &obj;
 
-				if (!serializer.ptrDisambiguationStore.get_reference(&obj, 0))
-					serializer.ptrDisambiguationStore.set_reference(&obj, 0, dbgStructStartLoc);
-
 				f(obj);
 
 				dbgStructStartLoc = prevDbgStructStartLoc;
@@ -209,7 +222,7 @@ namespace rip::binary {
 		};
 
 	public:
-		ReflectionSerializer(Backend& backend) : backend{ backend } { }
+		ReflectionSerializer(Stream& stream) : backend{ stream } { }
 
 		template<typename T, typename R>
 		void serialize(T& data, R refl) {

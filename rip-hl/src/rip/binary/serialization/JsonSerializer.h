@@ -6,6 +6,8 @@
 #include <iomanip>
 #include <sstream>
 #include <rip/util/object-id-guids.h>
+#include <rip/util/json-path.h>
+#include "PointerDisambiguationStore.h"
 
 namespace rip::binary {
 	using namespace ucsl::reflection;
@@ -16,6 +18,8 @@ namespace rip::binary {
 		yyjson_mut_doc* doc;
 		const char* filename;
 		yyjson_mut_val* currentStruct{};
+		util::json_path_builder jsonPathBuilder{};
+		SerializationPointerDisambiguationStore<std::string> ptrDisambStore{};
 
 		class SerializeChunk {
 		public:
@@ -198,7 +202,16 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
-				return yyjson_mut_str(serializer.doc, "TODO");
+				if (obj == nullptr)
+					return yyjson_mut_null(serializer.doc);
+
+				if (auto ref = serializer.ptrDisambStore.get_reference(obj, 0)) {
+					yyjson_mut_val* refObj = yyjson_mut_obj(serializer.doc);
+					yyjson_mut_obj_add_strcpy(serializer.doc, refObj, "$ref", ref.value().c_str());
+					return refObj;
+				}
+
+				assert(false && "cannot find backreference");
 			}
 
 			template<typename T, typename O>
@@ -219,29 +232,51 @@ namespace rip::binary {
 			template<typename F, typename C, typename D, typename A>
 			result_type visit_array(A& arr, const ArrayInfo& info, C c, D d, F f) {
 				yyjson_mut_val* jarr = yyjson_mut_arr(serializer.doc);
-				for (auto& obj : arr)
+				size_t idx{};
+				for (auto& obj : arr) {
+					serializer.jsonPathBuilder.push(idx++);
 					yyjson_mut_arr_add_val(jarr, f(obj).value);
+					serializer.jsonPathBuilder.pop();
+				}
 				return jarr;
 			}
 
 			template<typename F, typename C, typename D, typename A>
 			result_type visit_tarray(A& arr, const ArrayInfo& info, C c, D d, F f) {
 				yyjson_mut_val* jarr = yyjson_mut_arr(serializer.doc);
-				for (auto& obj : arr)
+				size_t idx{};
+				for (auto& obj : arr) {
+					serializer.jsonPathBuilder.push(idx++);
 					yyjson_mut_arr_add_val(jarr, f(obj).value);
+					serializer.jsonPathBuilder.pop();
+				}
 				return jarr;
 			}
 
 			template<typename F, typename A, typename S>
 			result_type visit_pointer(opaque_obj*& obj, const PointerInfo<A, S>& info, F f) {
-				return obj == nullptr ? yyjson_mut_null(serializer.doc) : f(*obj);
+				if (obj == nullptr)
+					return yyjson_mut_null(serializer.doc);
+				
+				if (auto ref = serializer.ptrDisambStore.get_reference(obj, info.getTargetSize())) {
+					yyjson_mut_val* refObj = yyjson_mut_obj(serializer.doc);
+					yyjson_mut_obj_add_strcpy(serializer.doc, refObj, "$ref", ref.value().c_str());
+					return refObj;
+				}
+
+				serializer.ptrDisambStore.set_reference(obj, info.getTargetSize(), serializer.jsonPathBuilder.str());
+
+				return f(*obj);
 			}
 
 			template<typename F>
 			result_type visit_carray(opaque_obj* obj, const CArrayInfo& info, F f) {
 				yyjson_mut_val* jarr = yyjson_mut_arr(serializer.doc);
-				for (size_t i = 0; i < info.size; i++)
+				for (size_t i = 0; i < info.size; i++) {
+					serializer.jsonPathBuilder.push(i);
 					yyjson_mut_arr_add_val(jarr, f(*addptr(obj, i * info.stride)).value);
+					serializer.jsonPathBuilder.pop();
+				}
 				return jarr;
 			}
 
@@ -257,8 +292,11 @@ namespace rip::binary {
 
 			template<typename F>
 			result_type visit_field(opaque_obj& obj, const FieldInfo& info, F f) {
-				if (!info.erased)
+				if (!info.erased) {
+					serializer.jsonPathBuilder.push(info.name);
 					yyjson_mut_obj_add_val(serializer.doc, serializer.currentStruct, info.name, f(obj).value);
+					serializer.jsonPathBuilder.pop();
+				}
 				return nullptr;
 			}
 
@@ -269,6 +307,8 @@ namespace rip::binary {
 
 			template<typename F>
 			result_type visit_struct(opaque_obj& obj, const StructureInfo& info, F f) {
+				serializer.ptrDisambStore.set_reference(&obj, 0, serializer.jsonPathBuilder.str());
+
 				yyjson_mut_val* thisStruct = yyjson_mut_obj(serializer.doc);
 				yyjson_mut_val* prevStruct = serializer.currentStruct;
 				serializer.currentStruct = thisStruct;

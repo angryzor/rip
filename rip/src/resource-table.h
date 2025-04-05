@@ -17,7 +17,7 @@
 #include <ucsl/resources/nxs/v1.h>
 #include <ucsl/resources/path/v1.h>
 #include <ucsl/resources/path/v200.h>
-#include <ucsl/resources/pcmodel/v2.h>
+#include <ucsl/resources/pointcloud/v2.h>
 #include <ucsl/resources/master-level/v0.h>
 #include <ucsl/resources/density-setting/v11.h>
 #include <ucsl/resources/aism/v0.h>
@@ -39,7 +39,7 @@
 #include <ucsl-reflection/reflections/resources/nxs/v1.h>
 #include <ucsl-reflection/reflections/resources/path/v1.h>
 #include <ucsl-reflection/reflections/resources/path/v200.h>
-#include <ucsl-reflection/reflections/resources/pcmodel/v2.h>
+#include <ucsl-reflection/reflections/resources/pointcloud/v2.h>
 #include <ucsl-reflection/reflections/resources/master-level/v0.h>
 #include <ucsl-reflection/reflections/resources/density-setting/v11.h>
 #include <ucsl-reflection/reflections/resources/aism/v0.h>
@@ -135,7 +135,7 @@ namespace rip::cli::convert {
 			version<"2.00", ucsl::resources::path::v200::PathsData>
 		>;
 		using pcmodel = resource<ResourceType::PCMODEL, "2",
-			version<"2", ucsl::resources::pcmodel::v2::PointCloudModelData>
+			version<"2", ucsl::resources::pointcloud::v2::PointcloudData>
 		>;
 		using mlevel = resource<ResourceType::MASTER_LEVEL, "0",
 			version<"0", ucsl::resources::master_level::v0::MasterLevelData>

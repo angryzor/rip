@@ -6,6 +6,7 @@
 #include <ucsl/resources/swif/v6.h>
 #include <ucsl-reflection/providers/simplerfl.h>
 #include <rip/binary/containers/binary-file/v2.h>
+#include <rip/binary/containers/mirage/v1.h>
 #include <rip/binary/containers/mirage/v2.h>
 #include <rip/binary/containers/swif/SWIF.h>
 #include <rip/binary/serialization/JsonSerializer.h>

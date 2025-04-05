@@ -166,26 +166,26 @@ namespace rip::binary {
 		template<typename... Args>
 		BlobWorker(Args&&... args) : allocator{ std::forward<Args>(args)... }, scheduler{ allocator } {}
 
-		T enqueueBlock(size_t size, size_t alignment, auto processFunc) {
+		T enqueueBlock(size_t size, size_t alignment, auto&& processFunc) {
 			T offset{};
-			enqueueBlock(offset, size, alignment, processFunc);
+			enqueueBlock(offset, size, alignment, std::forward<decltype(processFunc)>(processFunc));
 			return offset;
 		}
 
-		void enqueueBlock(T& offset, size_t size, size_t alignment, auto processFunc) {
-			enqueueBlock(offset, [size, alignment]() { return BlockAllocationData{ size, alignment }; }, processFunc);
+		void enqueueBlock(T& offset, size_t size, size_t alignment, auto&& processFunc) {
+			enqueueBlock(offset, [size, alignment]() { return BlockAllocationData{ size, alignment }; }, std::forward<decltype(processFunc)>(processFunc));
 		}
 
-		void enqueueBlock(T& offset, auto allocationDataGetter, auto processFunc) {
-			enqueueBlock([&offset](T off) { offset = off; }, allocationDataGetter, processFunc);
+		void enqueueBlock(T& offset, auto&& allocationDataGetter, auto&& processFunc) {
+			enqueueBlock([&offset](T off) { offset = off; }, std::forward<decltype(allocationDataGetter)>(allocationDataGetter), std::forward<decltype(processFunc)>(processFunc));
 		}
 
-		void enqueueBlock(auto storeOffset, auto allocationDataGetter, auto processFunc) {
-			enqueueBlock([]() { return true; }, storeOffset, allocationDataGetter, processFunc);
+		void enqueueBlock(auto&& storeOffset, auto&& allocationDataGetter, auto&& processFunc) {
+			enqueueBlock([]() { return true; }, std::forward<decltype(storeOffset)>(storeOffset), std::forward<decltype(allocationDataGetter)>(allocationDataGetter), std::forward<decltype(processFunc)>(processFunc));
 		}
 
-		void enqueueBlock(auto guard, auto storeOffset, auto allocationDataGetter, auto processFunc) {
-			scheduler.enqueueBlock(guard, storeOffset, allocationDataGetter, processFunc);
+		void enqueueBlock(auto&& guard, auto&& storeOffset, auto&& allocationDataGetter, auto&& processFunc) {
+			scheduler.enqueueBlock(std::forward<decltype(guard)>(guard), std::forward<decltype(storeOffset)>(storeOffset), std::forward<decltype(allocationDataGetter)>(allocationDataGetter), std::forward<decltype(processFunc)>(processFunc));
 		}
 
 		void processQueuedBlocks() {

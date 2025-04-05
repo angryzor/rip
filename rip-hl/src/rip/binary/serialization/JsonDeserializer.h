@@ -26,19 +26,23 @@ namespace rip::binary {
 			OpState& state;
 
 			template<typename F>
-			result_type with_val(yyjson_val* val, F f) {
+			void with_val(yyjson_val* val, F f) {
 				yyjson_val* prevVal = state.currentVal;
 				state.currentVal = val;
-				auto res = f();
+				f();
 				state.currentVal = prevVal;
-				return res;
 			}
 
 			template<typename T>
-			void enqueue_block(T*& ptr, auto alignmentGetter, auto processFunc) {
-				state.worker.enqueueBlock((opaque_obj*&)ptr, alignmentGetter, [this, processFunc, blockVal = state.currentVal](opaque_obj* offset, size_t alignment) {
-					with_val(blockVal, [processFunc, offset]() { return processFunc((T*)offset); });
-				});
+			void enqueue_block(T*& ptr, auto&& alignmentGetter, auto processFunc) {
+				state.worker.enqueueBlock(
+					[](){ return true; },
+					[&ptr](opaque_obj* target){ (opaque_obj*&)ptr = target; },
+					std::forward<decltype(alignmentGetter)>(alignmentGetter),
+					[this, processFunc, blockVal = state.currentVal](opaque_obj* offset, size_t alignment) {
+						with_val(blockVal, [processFunc, offset]() { processFunc(offset); });
+					}
+				);
 			}
 
 			OperationBase(OpState& state) : state{ state } {}
@@ -224,9 +228,8 @@ namespace rip::binary {
 				else {
 					const char* str = yyjson_get_str(state.currentVal);
 
-					enqueue_block(obj, [size = strlen(str) + 1]() { return BlockAllocationData{ size, 1 }; }, [str](const char* target) {
-						strcpy_s(const_cast<char*>(target), strlen(str) + 1, str);
-						return 0;
+					enqueue_block(obj, [size = strlen(str) + 1]() { return BlockAllocationData{ size, 1 }; }, [str](opaque_obj* target) {
+						strcpy_s((char*)target, strlen(str) + 1, str);
 					});
 				}
 				return 0;
@@ -268,9 +271,8 @@ namespace rip::binary {
 						size_t i, max;
 						yyjson_val* item;
 						yyjson_arr_foreach (state.currentVal, i, max, item) {
-							with_val(item, [target, itemSize, i, f]() { return f(*addptr(target, i * itemSize)); });
+							with_val(item, [target, itemSize, i, f]() { f(*addptr(target, i * itemSize)); });
 						}
-						return 0;
 					});
 				*length = arrsize;
 				*capacity = arrsize;
@@ -291,9 +293,8 @@ namespace rip::binary {
 						size_t i, max;
 						yyjson_val* item;
 						yyjson_arr_foreach (state.currentVal, i, max, item) {
-							with_val(item, [target, itemSize, i, f]() { return f(*addptr(target, i * itemSize)); });
+							with_val(item, [target, itemSize, i, f]() { f(*addptr(target, i * itemSize)); });
 						}
-						return 0;
 					});
 				*length = arrsize;
 				*capacity = arrsize;
@@ -305,7 +306,7 @@ namespace rip::binary {
 				if (yyjson_is_null(state.currentVal))
 					obj = nullptr;
 				else
-					enqueue_block(obj, [info]() { return BlockAllocationData{ info.getTargetSize(), info.getTargetAlignment() }; }, [f](opaque_obj* target) { return f(*target); });
+					enqueue_block(obj, [info]() { return BlockAllocationData{ info.getTargetSize(), info.getTargetAlignment() }; }, [f](opaque_obj* target) { f(*target); });
 				return 0;
 			}
 
@@ -315,7 +316,7 @@ namespace rip::binary {
 				size_t i, max;
 				yyjson_val* item;
 				yyjson_arr_foreach (state.currentVal, i, max, item) {
-					with_val(item, [f, obj, i, stride = info.stride]() { return f(*addptr(obj, i * stride)); });
+					with_val(item, [f, obj, i, stride = info.stride]() { f(*addptr(obj, i * stride)); });
 				}
 				return 0;
 			}
@@ -332,7 +333,7 @@ namespace rip::binary {
 
 			template<typename F>
 			result_type visit_field(opaque_obj& obj, const FieldInfo& info, F f) {
-				with_val(yyjson_obj_get(state.currentVal, info.name), [f, &obj]() { return f(obj); });
+				with_val(yyjson_obj_get(state.currentVal, info.name), [f, &obj]() { f(obj); });
 				return 0;
 			}
 
@@ -352,9 +353,7 @@ namespace rip::binary {
 				with_val(yyjson_doc_get_root(state.deserializer.doc), [f, this, &ptr, &info]() {
 					enqueue_block(ptr, [info]() { return BlockAllocationData{ info.size, info.alignment }; }, [f](opaque_obj* target) {
 						f(*target);
-						return 0;
 					});
-					return 0;
 				});
 				state.worker.processQueuedBlocks();
 				return 0;

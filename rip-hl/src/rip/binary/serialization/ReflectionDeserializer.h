@@ -7,6 +7,7 @@
 #include <rip/binary/types.h>
 #include <rip/util/memory.h>
 #include "BlobWorker.h"
+#include "PointerDisambiguationStore.h"
 #include <iostream>
 
 namespace rip::binary {
@@ -16,20 +17,6 @@ namespace rip::binary {
 	template<typename GameInterface, typename Backend>
 	class ReflectionDeserializer {
 		Backend& backend;
-
-		// We keep the buffer size as well, since sometimes an earlier reference serialized a smaller slice
-		// of the buffer, and in that case we can't simply point back to this already stored version.
-		// We could do a lot of work to roll back and instead store a larger buffer, but for now I'm just
-		// duplicating the data in that case, since it mostly happens with dangling pointers of empty MoveArrays.
-		struct DisambiguatedOffset {
-			struct Resolution {
-				opaque_obj* ptr;
-				size_t size;
-			};
-
-			std::optional<Resolution> resolved{};
-			std::vector<opaque_obj**> ptrs{};
-		};
 
 		template<typename OpState>
 		class OperationBase {
@@ -50,34 +37,14 @@ namespace rip::binary {
 
 				size_t off = offset.value();
 
-				auto it = state.knownOffsets.find(off);
-				if (it != state.knownOffsets.end())
-					it->second.ptrs.push_back(&(opaque_obj*&)ptr);
-				else
-					state.knownOffsets.emplace(off, DisambiguatedOffset{ std::nullopt, { &(opaque_obj*&)ptr } });
+				state.ptrDisambiguationStore.add_pointer(off, (void*&)ptr);
 
 				state.worker.enqueueBlock(
-					[this, off, allocationDataGetter, &ptr]() {
-						auto it = state.knownOffsets.find(off);
-						if (!it->second.resolved.has_value())
-							return true;
-
-						auto& resolved = it->second.resolved.value();
-
-						if (resolved.size < allocationDataGetter().size)
-							return true;
-
-						ptr = (T*)resolved.ptr;
-
-						return false;
+					[this, off, allocationDataGetter]() {
+						return !state.ptrDisambiguationStore.is_resolved(off, allocationDataGetter().size);
 					},
 					[this, off, allocationDataGetter](opaque_obj* target) {
-						auto& disamb = state.knownOffsets.find(off)->second;
-
-						for (opaque_obj** ptr : disamb.ptrs)
-							*ptr = target;
-
-						disamb.resolved = { target, allocationDataGetter().size };
+						state.ptrDisambiguationStore.set_resolved_target(off, allocationDataGetter().size, target);
 					},
 					allocationDataGetter,
 					[this, off, processFunc](opaque_obj* target, size_t alignment) {
@@ -160,11 +127,7 @@ namespace rip::binary {
 					return 0;
 				}
 
-				auto& known = state.knownOffsets[offset.value()];
-
-				known.ptrs.push_back(&(opaque_obj*&)obj);
-				if (known.resolved.has_value())
-					obj = known.resolved.value().ptr;
+				state.ptrDisambiguationStore.add_pointer(offset.value(), obj);
 				return 0;
 			}
 
@@ -317,7 +280,7 @@ namespace rip::binary {
 		struct OperationState {
 			ReflectionDeserializer& deserializer;
 			BlobWorker<ucsl::reflection::opaque_obj*, Allocator, DeferredAllocationBlobWorkerScheduler> worker{};
-			std::map<size_t, DisambiguatedOffset> knownOffsets{};
+			DeserializationPointerDisambiguationStore<size_t> ptrDisambiguationStore{};
 		};
 
 		using MeasureState = OperationState<HeapBlockAllocator<GameInterface, opaque_obj>>;
