@@ -7,7 +7,6 @@
 #include <CLI/CLI.hpp>
 #include <iostream>
 #include <map>
-#include <ucsl-reflection/reflections/resources/fxcol/v1.h>
 
 std::map<std::string, Format> formatMap{
 	{ "binary", Format::BINARY },
@@ -20,6 +19,7 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "gedit", ResourceType::GEDIT },
 	{ "map", ResourceType::MAP },
 	{ "path", ResourceType::PATH },
+	{ "pba", ResourceType::PBA },
 	{ "material", ResourceType::MATERIAL },
 	{ "rfl", ResourceType::RFL },
 	{ "vat", ResourceType::VAT },
@@ -31,6 +31,7 @@ std::map<std::string, ResourceType> resourceTypeMap{
 	{ "masterlevel", ResourceType::MASTER_LEVEL },
 	{ "densitysetting", ResourceType::DENSITY_SETTING },
 	{ "aism", ResourceType::AISM },
+	{ "effdb", ResourceType::PARTICLE_LOCATION },
 };
 
 std::map<std::string, AddressingMode> addressingModeMap{
@@ -73,9 +74,6 @@ int main(int argc, char** argv) {
 		std::cerr << "Converting " << resourceTypeMapReverse[config.getResourceType()] << " from " << formatMapReverse[config.getInputFormat()] << " to " << formatMapReverse[config.getOutputFormat()] << std::endl;
 		std::cerr << "Input file: " << config.inputFile.generic_string() << std::endl;
 		std::cerr << "Output file: " << config.getOutputFile().generic_string() << std::endl;
-
-		if (config.getInputFormat() == Format::HSON)
-			throw new std::runtime_error{ "HSON input currently not yet supported." };
 
 		ucsl::reflection::game_interfaces::standalone::StandaloneGameInterface::boot();
 

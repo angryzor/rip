@@ -23,7 +23,7 @@ namespace rip::util {
 		}
 
 		std::string str() const {
-			std::string res{ "#" };
+			std::string res{};
 
 			for (auto& frag : fragments) {
 				res += "/";

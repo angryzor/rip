@@ -7,6 +7,7 @@ std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".gedit", ResourceType::GEDIT },
 	{ ".map.bin", ResourceType::MAP },
 	{ ".path.bin", ResourceType::PATH },
+	{ ".pba", ResourceType::PBA },
 	{ ".material", ResourceType::MATERIAL },
 	{ ".rfl", ResourceType::RFL },
 	{ ".vat", ResourceType::VAT },
@@ -18,6 +19,7 @@ std::map<std::string, ResourceType> resourceTypeByExt{
 	{ ".mlevel", ResourceType::MASTER_LEVEL },
 	{ ".densitysetting", ResourceType::DENSITY_SETTING },
 	{ ".aism", ResourceType::AISM },
+	{ ".effdb", ResourceType::PARTICLE_LOCATION },
 };
 
 auto extByResourceType = reverse_map(resourceTypeByExt);

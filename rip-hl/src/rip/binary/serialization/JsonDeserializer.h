@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include "BlobWorker.h"
+#include "PointerDisambiguationStore.h"
 
 namespace rip::binary {
 	using namespace ucsl::reflection;
@@ -27,6 +28,10 @@ namespace rip::binary {
 
 			template<typename F>
 			void with_val(yyjson_val* val, F f) {
+				yyjson_val* ref;
+				while (yyjson_is_obj(val) && (ref = yyjson_obj_get(val, "$ref")))
+					val = yyjson_ptr_get(state.deserializer.doc->root, yyjson_get_str(ref));
+
 				yyjson_val* prevVal = state.currentVal;
 				state.currentVal = val;
 				f();
@@ -34,13 +39,21 @@ namespace rip::binary {
 			}
 
 			template<typename T>
-			void enqueue_block(T*& ptr, auto&& alignmentGetter, auto processFunc) {
+			void enqueue_block(T*& ptr, auto&& allocationDataGetter, auto processFunc) {
+				yyjson_val* reference = state.currentVal;
+
+				state.ptrDisambiguationStore.add_pointer(reference, (void*&)ptr);
+
 				state.worker.enqueueBlock(
-					[](){ return true; },
-					[&ptr](opaque_obj* target){ (opaque_obj*&)ptr = target; },
-					std::forward<decltype(alignmentGetter)>(alignmentGetter),
-					[this, processFunc, blockVal = state.currentVal](opaque_obj* offset, size_t alignment) {
-						with_val(blockVal, [processFunc, offset]() { processFunc(offset); });
+					[this, reference, allocationDataGetter]() {
+						return !state.ptrDisambiguationStore.is_resolved(reference, allocationDataGetter().size);
+					},
+					[this, reference, allocationDataGetter](opaque_obj* target) {
+						state.ptrDisambiguationStore.set_resolved_target(reference, allocationDataGetter().size, target);
+					},
+					std::forward<decltype(allocationDataGetter)>(allocationDataGetter),
+					[this, reference, processFunc](opaque_obj* offset, size_t alignment) {
+						with_val(reference, [processFunc, offset]() { processFunc(offset); });
 					}
 				);
 			}
@@ -121,6 +134,24 @@ namespace rip::binary {
 					obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
 					obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
 					obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+				}
+				return 0;
+			}
+
+			result_type visit_primitive(ucsl::math::Rotation& obj, const PrimitiveInfo<ucsl::math::Rotation>& info) {
+				if constexpr (arrayVectors) {
+					assert(yyjson_arr_size(state.currentVal) == 4);
+					size_t i, max;
+					yyjson_val* item;
+					yyjson_arr_foreach(state.currentVal, i, max, item) {
+						obj.coeffs()(i, 0) = yyjson_get_num(item);
+					}
+				}
+				else {
+					obj.x() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "x")));
+					obj.y() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "y")));
+					obj.z() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "z")));
+					obj.w() = static_cast<float>(yyjson_get_num(yyjson_obj_get(state.currentVal, "w")));
 				}
 				return 0;
 			}
@@ -210,8 +241,8 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
-				auto buffer = (const char**)addptr(&obj, 0x0);
-				auto allocator = (void**)addptr(&obj, 0x8);
+				auto buffer = (const char**)addptr(&obj, sizeof(size_t) * 0);
+				auto allocator = (void**)addptr(&obj, sizeof(size_t) * 1);
 				if (yyjson_is_null(state.currentVal))
 					*buffer = nullptr;
 				else if (!strcmp("", yyjson_get_str(state.currentVal)))
@@ -241,11 +272,17 @@ namespace rip::binary {
 
 			template<typename T, typename O>
 			result_type visit_enum(T& obj, const EnumInfo<O>& info) {
-				const char* str = yyjson_get_str(state.currentVal);
-				for (auto& option : info.options) {
-					if (!strcmp(option.GetEnglishName(), str)) {
-						obj = static_cast<T>(option.GetIndex());
-						return 0;
+				if (yyjson_is_int(state.currentVal)) {
+					obj = static_cast<T>(yyjson_get_sint(state.currentVal));
+					return 0;
+				}
+				if (yyjson_is_str(state.currentVal)) {
+					const char* str = yyjson_get_str(state.currentVal);
+					for (auto& option : info.options) {
+						if (!strcmp(option.GetEnglishName(), str)) {
+							obj = static_cast<T>(option.GetIndex());
+							return 0;
+						}
 					}
 				}
 				assert("unhandled enum");
@@ -260,10 +297,10 @@ namespace rip::binary {
 			template<typename F, typename C, typename D, typename A>
 			result_type visit_array(A& arr, const ArrayInfo& info, C c, D d, F f) {
 				size_t arrsize = yyjson_arr_size(state.currentVal);
-				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
-				auto length = (unsigned long long*)addptr(&arr.underlying, 0x8);
-				auto capacity = (unsigned long long*)addptr(&arr.underlying, 0x10);
-				auto allocator = (void**)addptr(&arr.underlying, 0x18);
+				auto buffer = (opaque_obj**)addptr(&arr.underlying, sizeof(size_t) * 0);
+				auto length = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 1);
+				auto capacity = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 2);
+				auto allocator = (void**)addptr(&arr.underlying, sizeof(size_t) * 3);
 				if (arrsize == 0)
 					*buffer = nullptr;
 				else
@@ -283,13 +320,13 @@ namespace rip::binary {
 			template<typename F, typename C, typename D, typename A>
 			result_type visit_tarray(A& arr, const ArrayInfo& info, C c, D d, F f) {
 				size_t arrsize = yyjson_arr_size(state.currentVal);
-				auto buffer = (opaque_obj**)addptr(&arr.underlying, 0x0);
-				auto length = (unsigned long long*)addptr(&arr.underlying, 0x8);
-				auto capacity = (long long*)addptr(&arr.underlying, 0x10);
+				auto buffer = (opaque_obj**)addptr(&arr.underlying, sizeof(size_t) * 0);
+				auto length = (size_t*)addptr(&arr.underlying, sizeof(size_t) * 1);
+				auto capacity = (intptr_t*)addptr(&arr.underlying, sizeof(size_t) * 2);
 				if (arrsize == 0)
 					*buffer = nullptr;
 				else
-					enqueue_block(*buffer, [info, arrsize]() { return BlockAllocationData{ arrsize * info.itemSize, info.itemAlignment }; }, [this, itemSize = info.itemSize, f](opaque_obj* target) {
+					enqueue_block(*buffer, [info, arrsize]() { return BlockAllocationData{ arrsize * info.itemSize, info.itemAlignment }; }, [this, itemSize = info.itemSize, arrsize, f](opaque_obj* target) {
 						size_t i, max;
 						yyjson_val* item;
 						yyjson_arr_foreach (state.currentVal, i, max, item) {
@@ -305,6 +342,8 @@ namespace rip::binary {
 			result_type visit_pointer(opaque_obj*& obj, const PointerInfo<A, S>& info, F f) {
 				if (yyjson_is_null(state.currentVal))
 					obj = nullptr;
+				else if (info.isWeak)
+					state.ptrDisambiguationStore.add_pointer(state.currentVal, (void*&)obj);
 				else
 					enqueue_block(obj, [info]() { return BlockAllocationData{ info.getTargetSize(), info.getTargetAlignment() }; }, [f](opaque_obj* target) { f(*target); });
 				return 0;
@@ -365,6 +404,7 @@ namespace rip::binary {
 			JsonDeserializer& deserializer;
 			yyjson_val* currentVal{};
 			BlobWorker<opaque_obj*, Allocator, DeferredAllocationBlobWorkerScheduler> worker{};
+			DeserializationPointerDisambiguationStore<yyjson_val*> ptrDisambiguationStore{};
 		};
 
 		using MeasureState = OperationState<HeapBlockAllocator<GameInterface, opaque_obj>>;
@@ -385,6 +425,31 @@ namespace rip::binary {
 		T* deserialize(R refl) {
 			yyjson_read_err err;
 			doc = yyjson_read_file(filename, 0, nullptr, &err);
+			if (err.code != YYJSON_READ_SUCCESS) {
+				std::cout << "Error reading json: " << err.msg << std::endl;
+				return nullptr;
+			}
+
+			T* stub{};
+			ucsl::reflection::traversals::traversal<OperationBase<MeasureState>> measureOp{ measureState };
+			measureOp.operator()<T>(*stub, refl);
+			size_t size = measureState.worker.allocator.sizeRequired;
+
+			result = (opaque_obj*)GameInterface::AllocatorSystem::get_allocator()->Alloc(size, 16);
+			writeState.worker.allocator.origin = result;
+
+			memset(result, 0, size);
+
+			ucsl::reflection::traversals::traversal<OperationBase<WriteState>> writeOp{ writeState };
+			writeOp.operator()<T>(*(T*)result, refl);
+
+			return (T*)result;
+		}
+
+		template<typename T, typename R>
+		T* deserializeString(R refl) {
+			yyjson_read_err err;
+			doc = yyjson_read_opts((char*)filename, strlen(filename), 0, nullptr, &err);
 			if (err.code != YYJSON_READ_SUCCESS) {
 				std::cout << "Error reading json: " << err.msg << std::endl;
 				return nullptr;

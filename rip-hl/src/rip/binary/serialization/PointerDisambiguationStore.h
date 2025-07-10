@@ -1,6 +1,8 @@
 #pragma once
+#include <map>
 #include <unordered_map>
 #include <optional>
+#include <tuple>
 #include <ucsl-reflection/opaque.h>
 
 namespace rip::binary {
@@ -8,6 +10,10 @@ namespace rip::binary {
 
 	template<typename ReferenceType>
 	class SerializationPointerDisambiguationStore {
+		// We keep the buffer size as well, since sometimes an earlier reference serialized a smaller slice
+		// of the buffer, and in that case we can't simply point back to this already stored version.
+		// We could do a lot of work to roll back and instead store a larger buffer, but for now I'm just
+		// duplicating the data in that case, since it mostly happens with dangling pointers of empty MoveArrays.
 		struct DisambiguatedPointer {
 			ReferenceType reference;
 			size_t bufferSize;
@@ -28,13 +34,27 @@ namespace rip::binary {
 			knownPtrs[ptr] = { reference, size };
 		}
 	};
+	
+	template<typename ReferenceType>
+	class SerializationPointerDisambiguationStore2 {
+		std::map<std::tuple<const void*, size_t>, ReferenceType> knownPtrs{};
+
+	public:
+		std::optional<ReferenceType> get_reference(const void* ptr, size_t size) {
+			auto it = knownPtrs.find({ ptr, size });
+			if (it != knownPtrs.end())
+				return std::make_optional(it->second);
+
+			return std::nullopt;
+		}
+
+		void set_reference(const void* ptr, size_t size, ReferenceType reference) {
+			knownPtrs[{ ptr, size }] = reference;
+		}
+	};
 
 	template<typename ReferenceType>
 	class DeserializationPointerDisambiguationStore {
-		// We keep the buffer size as well, since sometimes an earlier reference serialized a smaller slice
-		// of the buffer, and in that case we can't simply point back to this already stored version.
-		// We could do a lot of work to roll back and instead store a larger buffer, but for now I'm just
-		// duplicating the data in that case, since it mostly happens with dangling pointers of empty MoveArrays.
 		struct DisambiguatedReference {
 			struct Resolution {
 				void* ptr;

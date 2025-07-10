@@ -7,6 +7,7 @@ target_sources(rip-hl
         "rip/binary/stream.h"
         "rip/binary/types.h"
         
+        "rip/binary/accessors/json.h"
         "rip/binary/containers/binary-file/v1.h"
         "rip/binary/containers/binary-file/v2.h"
         "rip/binary/containers/swif/SWIF.h"

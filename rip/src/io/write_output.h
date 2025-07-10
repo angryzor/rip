@@ -60,6 +60,26 @@ void writeOutputFileOther(const Config& config, T* data) {
 				serializer.serialize<T>(*data, ucsl::reflection::providers::simplerfl<GI>::template reflect<T>());
 			}
 		}
+		else if constexpr (std::is_same_v<T, ucsl::resources::sobj::v1::SetObjectData<GI::AllocatorSystem>>) {
+			if (config.version == "1-colors") {
+				rip::binary::containers::binary_file::v1::BinaryFileSerializer<size_t, std::endian::big, true> serializer{ ofs };
+				serializer.serialize<GI>(*data);
+			}
+			else {
+				rip::binary::containers::binary_file::v1::BinaryFileSerializer<size_t, std::endian::little, true> serializer{ ofs };
+				serializer.serialize<GI>(*data);
+			}
+		}
+		else if constexpr (std::is_same_v<T, ucsl::resources::nxs::v1::NXSData>) {
+			if (config.version == "1-colors") {
+				rip::binary::containers::binary_file::v1::BinaryFileSerializer<size_t, std::endian::big> serializer{ ofs };
+				serializer.serialize<GI>(*data);
+			}
+			else {
+				rip::binary::containers::binary_file::v1::BinaryFileSerializer<size_t, std::endian::little> serializer{ ofs };
+				serializer.serialize<GI>(*data);
+			}
+		}
 		else {
 			rip::binary::containers::binary_file::v2::BinaryFileSerializer<size_t> serializer{ ofs };
 			serializer.serialize<GI>(*data);

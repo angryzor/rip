@@ -17,8 +17,7 @@ namespace rip::binary::containers::binary_file::v1 {
 		unsigned int dataSize;
 		unsigned int offsetTableSize;
 		unsigned int padding1;
-		unsigned short flags;
-		unsigned short footerCount;
+		unsigned int footerCount;
 		ucsl::magic_t<3> version;
 		char endianness;
 		ucsl::magic_t<4> magic;
@@ -29,6 +28,17 @@ namespace rip::binary::containers::binary_file::v1 {
 			util::byteswap_deep(dataSize);
 			util::byteswap_deep(offsetTableSize);
 			util::byteswap_deep(footerCount);
+		}
+	};
+
+	struct BVHHeader {
+		unsigned int unk1;
+		unsigned int unk2;
+		ucsl::magic_t<3> magic;
+
+		inline void byteswap_deep() noexcept {
+			util::byteswap_deep(unk1);
+			util::byteswap_deep(unk2);
 		}
 	};
 
@@ -103,28 +113,65 @@ namespace rip::binary::containers::binary_file::v1 {
 		}
 	};
 
-	//class BinaryFileWriter {
-	//	binary_ostream& stream;
-	//	std::endian endianness;
-	//	unsigned short chunkCount{};
+	template<typename AddressType, std::endian endianness, bool include_bvh = false>
+	class chunk_ostream : public data_ostream<AddressType, endianness> {
+	public:
+		chunk_ostream(fast_ostream& raw_stream, binary_ostream<AddressType, endianness>& stream) : data_ostream<AddressType, endianness>{ raw_stream, stream, sizeof(FileHeader) } {
+			this->stream.write(FileHeader{});
+		}
 
-	//public:
-	//	BinaryFileWriter(binary_ostream& stream, std::endian endianness = std::endian::native);
-	//	~BinaryFileWriter();
-	//	chunk_ostream addData();
-	//	void finish();
-	//};
+		~chunk_ostream() {
+			finish();
+		}
 
-	//class BinaryFileResolver {
-	//	FileHeader* file;
+		void finish() {
+			this->writeStringTable();
+			size_t offsetTableStart = this->stream.tellp();
+			this->writeOffsetTable();
+			size_t offsetTableEnd = this->stream.tellp();
 
-	//	void doByteswaps();
-	//	void resolveAddresses();
+			unsigned int footerCount{};
+			if constexpr (include_bvh) {
+				BVHHeader bvhHeader{};
+				bvhHeader.unk1 = 0x10;
+				bvhHeader.unk2 = 0x0;
+				bvhHeader.magic = "bvh";
 
-	//public:
-	//	BinaryFileResolver(void* file);
-	//	void* getData();
-	//};
+				this->stream.write(bvhHeader);
+				this->stream.write_padding(4);
+				
+				footerCount++;
+			}
+
+			size_t chunkEnd = this->stream.tellp();
+			
+			FileHeader fileHeader{};
+			fileHeader.size = static_cast<unsigned int>(chunkEnd);
+			fileHeader.dataSize = static_cast<unsigned int>(offsetTableStart - sizeof(FileHeader));
+			fileHeader.offsetTableSize = static_cast<unsigned int>(offsetTableEnd - offsetTableStart);
+			fileHeader.footerCount = footerCount;
+			fileHeader.version = "\000\0001";
+			fileHeader.endianness = endianness == std::endian::big ? 'B' : 'L';
+			fileHeader.magic = "BINA";
+
+			this->stream.seekp(0);
+			this->stream.write(fileHeader);
+			this->stream.seekp(chunkEnd);
+		}
+	};
+
+	template<typename AddrType, std::endian endianness = std::endian::native, bool include_bvh = false>
+	class BinaryFileWriter {
+		fast_ostream raw_stream;
+		binary_ostream<AddrType, endianness> stream;
+
+	public:
+		BinaryFileWriter(std::ostream& stream_) : raw_stream{ stream_ }, stream{ raw_stream } {}
+
+		chunk_ostream<AddrType, endianness, include_bvh> getDataChunk() {
+			return { raw_stream, stream };
+		}
+	};
 
 	template<typename AddrType>
 	class BinaryFileDeserializer {
@@ -148,25 +195,25 @@ namespace rip::binary::containers::binary_file::v1 {
 		}
 	};
 
-	//template<typename AddrType, std::endian endianness = std::endian::native>
-	//class BinaryFileSerializer {
-	//	BinaryFileWriter<AddrType, endianness> container;
+	template<typename AddrType, std::endian endianness = std::endian::native, bool include_bvh = false>
+	class BinaryFileSerializer {
+		BinaryFileWriter<AddrType, endianness, include_bvh> container;
 
-	//public:
-	//	BinaryFileSerializer(std::ostream& stream) : container{ stream } {}
+	public:
+		BinaryFileSerializer(std::ostream& stream) : container{ stream } {}
 
-	//	template<typename T, typename R>
-	//	void serialize(T& data, R refl) {
-	//		auto chunk = container.addDataChunk();
+		template<typename T, typename R>
+		void serialize(T& data, R refl) {
+			auto chunk = container.getDataChunk();
 
-	//		rip::binary::ReflectionSerializer serializer{ chunk };
+			rip::binary::ReflectionSerializer serializer{ chunk };
 
-	//		serializer.serialize(data, refl);
-	//	}
+			serializer.serialize(data, refl);
+		}
 
-	//	template<typename GameInterface, typename T>
-	//	void serialize(T& data) {
-	//		serialize(data, ucsl::reflection::providers::simplerfl<GameInterface>::template reflect<T>());
-	//	}
-	//};
+		template<typename GameInterface, typename T>
+		void serialize(T& data) {
+			serialize(data, ucsl::reflection::providers::simplerfl<GameInterface>::template reflect<T>());
+		}
+	};
 }

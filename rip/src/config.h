@@ -25,9 +25,11 @@ enum class ResourceType {
 	PCMODEL,
 	NXS,
 	PATH,
+	PBA,
 	MASTER_LEVEL,
 	DENSITY_SETTING,
 	AISM,
+	PARTICLE_LOCATION,
 };
 
 enum class AddressingMode {

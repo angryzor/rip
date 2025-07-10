@@ -19,7 +19,7 @@ namespace rip::binary {
 		const char* filename;
 		yyjson_mut_val* currentStruct{};
 		util::json_path_builder jsonPathBuilder{};
-		SerializationPointerDisambiguationStore<std::string> ptrDisambStore{};
+		SerializationPointerDisambiguationStore2<std::string> ptrDisambStore{};
 
 		class SerializeChunk {
 		public:
@@ -33,6 +33,8 @@ namespace rip::binary {
 			};
 
 			JsonSerializer& serializer;
+			opaque_obj* curRef{};
+			size_t curSize{};
 
 			SerializeChunk(JsonSerializer& serializer) : serializer{ serializer } {}
 
@@ -105,6 +107,25 @@ namespace rip::binary {
 					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
 					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
 					yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+					return res;
+				}
+			}
+
+			result_type visit_primitive(ucsl::math::Rotation& obj, const PrimitiveInfo<ucsl::math::Rotation>& info) {
+				if constexpr (arrayVectors) {
+					yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+					yyjson_mut_arr_add_float(serializer.doc, res, obj.x());
+					yyjson_mut_arr_add_float(serializer.doc, res, obj.y());
+					yyjson_mut_arr_add_float(serializer.doc, res, obj.z());
+					yyjson_mut_arr_add_float(serializer.doc, res, obj.w());
+					return res;
+				}
+				else {
+					yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+					yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+					yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
 					return res;
 				}
 			}
@@ -198,7 +219,7 @@ namespace rip::binary {
 			}
 
 			result_type visit_primitive(const char*& obj, const PrimitiveInfo<const char*>& info) {
-				return yyjson_mut_str(serializer.doc, obj);
+				return obj == nullptr ? yyjson_mut_null(serializer.doc) : yyjson_mut_str(serializer.doc, obj);
 			}
 
 			result_type visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
@@ -221,7 +242,7 @@ namespace rip::binary {
 				for (auto& option : info.options)
 					if (option.GetIndex() == v)
 						return yyjson_mut_strcpy(serializer.doc, option.GetEnglishName());
-				return nullptr;
+				return val;
 			}
 
 			template<typename T, typename O>
@@ -257,14 +278,6 @@ namespace rip::binary {
 			result_type visit_pointer(opaque_obj*& obj, const PointerInfo<A, S>& info, F f) {
 				if (obj == nullptr)
 					return yyjson_mut_null(serializer.doc);
-				
-				if (auto ref = serializer.ptrDisambStore.get_reference(obj, info.getTargetSize())) {
-					yyjson_mut_val* refObj = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_strcpy(serializer.doc, refObj, "$ref", ref.value().c_str());
-					return refObj;
-				}
-
-				serializer.ptrDisambStore.set_reference(obj, info.getTargetSize(), serializer.jsonPathBuilder.str());
 
 				return f(*obj);
 			}
@@ -287,7 +300,28 @@ namespace rip::binary {
 
 			template<typename F>
 			result_type visit_type(opaque_obj& obj, const TypeInfo& info, F f) {
-				return f(obj);
+				if (&obj == curRef && info.size == curSize)
+					return f(obj);
+
+				if (auto ref = serializer.ptrDisambStore.get_reference(&obj, info.size)) {
+					yyjson_mut_val* refObj = yyjson_mut_obj(serializer.doc);
+					yyjson_mut_obj_add_strcpy(serializer.doc, refObj, "$ref", ref.value().c_str());
+					return refObj;
+				}
+
+				auto* tmpRef = curRef;
+				auto tmpSize = curSize;
+				curRef = &obj;
+				curSize = info.size;
+
+				auto res = f(obj);
+
+				curRef = tmpRef;
+				curSize = tmpSize;
+
+				serializer.ptrDisambStore.set_reference(&obj, info.size, serializer.jsonPathBuilder.str());
+
+				return res;
 			}
 
 			template<typename F>
@@ -307,8 +341,6 @@ namespace rip::binary {
 
 			template<typename F>
 			result_type visit_struct(opaque_obj& obj, const StructureInfo& info, F f) {
-				serializer.ptrDisambStore.set_reference(&obj, 0, serializer.jsonPathBuilder.str());
-
 				yyjson_mut_val* thisStruct = yyjson_mut_obj(serializer.doc);
 				yyjson_mut_val* prevStruct = serializer.currentStruct;
 				serializer.currentStruct = thisStruct;

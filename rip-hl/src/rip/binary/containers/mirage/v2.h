@@ -71,11 +71,13 @@ namespace rip::binary::containers::mirage::v2 {
 
                 bool isLast{};
                 do {
+                    size_t childOffset = this->tellg();
+
                     node_istream child{ this->stream, this->endianness };
 
                     f(child);
 
-                    this->seekg(nodeOffset + (header.nodeSizeAndFlags & 0x1FFFFFFF));
+                    this->seekg(childOffset + (child.header.nodeSizeAndFlags & 0x1FFFFFFF));
                     this->skip_padding(16);
                     isLast = child.isLastChild();
                 } while (!isLast);

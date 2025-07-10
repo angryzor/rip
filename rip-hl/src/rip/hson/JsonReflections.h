@@ -38,4 +38,68 @@ namespace rip::hson {
 			std::vector<Object> objects{};
 		};
 	}
+
+	namespace gedit_reflections {
+		struct ObjectTransformData {
+			std::optional<std::array<float, 3>> position;
+			std::optional<std::array<float, 3>> rotation;
+		};
+
+		struct ComponentData {
+			std::string type;
+			unsigned long long size;
+			rfl::Generic data;
+		};
+
+		struct ObjectData {
+			std::string gameObjectClass;
+			std::string name;
+			std::string id;
+			std::string parentID;
+			ObjectTransformData transform;
+			ObjectTransformData localTransform;
+			std::vector<ComponentData> componentData;
+			rfl::Generic spawnerData;
+		};
+
+		struct ObjectWorldData {
+			std::vector<ObjectData> objects;
+		};
+	}
+
+	namespace sobj_reflections {
+		struct ObjectTransformData {
+			std::optional<std::array<float, 3>> position;
+			std::optional<std::array<float, 3>> rotation;
+		};
+
+		struct ObjectData {
+			std::string id;
+			unsigned int objectClassId;
+			unsigned int bvhNode;
+			float replicationInterval;
+			float m_distance;
+			float m_range;
+			std::vector<ObjectTransformData> instances;
+			rfl::Generic spawnerData;
+		};
+
+		struct ObjectTypeData {
+			std::string name;
+			unsigned int objectIndexCount;
+			std::vector<unsigned short> objectIndices;
+		};
+
+		struct SetObjectData {
+			unsigned int magic;
+			unsigned int version;
+			unsigned int objectTypeCount;
+			std::vector<ObjectTypeData> objectTypes;
+			int bvh;
+			std::vector<ObjectData> objects;
+			unsigned int objectCount;
+			unsigned int bvhNodeCount;
+			unsigned int objectInstanceCount;
+		};
+	}
 }

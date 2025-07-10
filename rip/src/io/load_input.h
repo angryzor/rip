@@ -12,6 +12,7 @@
 #include "MirageInputFile.h"
 #include "SWIFInputFile.h"
 #include "JsonInputFile.h"
+#include "HsonInputFile.h"
 
 template<typename T>
 InputFile<T>* loadInputFile(const Config& config) {
@@ -36,6 +37,7 @@ InputFile<T>* loadInputFile(const Config& config) {
 		else
 			return new BinaryInputFileV2<T, size_t>{ config };
 	case Format::JSON: return new JsonInputFile<T>{ config };
+	case Format::HSON: return new HsonInputFile<T>{ config };
 	default: assert("unknown input format"); return nullptr;
 	}
 }

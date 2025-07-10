@@ -81,7 +81,7 @@ namespace rip::binary {
 
 			int visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
 				write_string(reinterpret_cast<const char*&>(obj));
-				serializer.backend.write(0ull);
+				serializer.backend.write(static_cast<size_t>(0));
 				return 0;
 			}
 
@@ -114,7 +114,7 @@ namespace rip::binary {
 				}));
 				serializer.backend.write(arr.size());
 				serializer.backend.write(arr.capacity());
-				serializer.backend.write(0ull);
+				serializer.backend.write(static_cast<size_t>(0));
 				return 0;
 			}
 
@@ -126,7 +126,7 @@ namespace rip::binary {
 						f(item);
 				}));
 				serializer.backend.write(arr.size());
-				serializer.backend.write(static_cast<int64_t>(arr.capacity()));
+				serializer.backend.write(static_cast<intptr_t>(arr.capacity()));
 				return 0;
 			}
 
