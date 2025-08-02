@@ -7,6 +7,7 @@
 #include <sstream>
 #include <rip/util/object-id-guids.h>
 #include <rip/util/json-path.h>
+#include <rip/binary/accessors/json.h>
 #include "PointerDisambiguationStore.h"
 
 namespace rip::binary {
@@ -38,211 +39,217 @@ namespace rip::binary {
 
 			SerializeChunk(JsonSerializer& serializer) : serializer{ serializer } {}
 
-			template<std::integral T, std::enable_if_t<std::is_signed_v<T>, bool> = true>
-			result_type visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
-				return yyjson_mut_sint(serializer.doc, obj);
-			}
+			//template<std::integral T, std::enable_if_t<std::is_signed_v<T>, bool> = true>
+			//result_type visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
+			//	return yyjson_mut_sint(serializer.doc, obj);
+			//}
 
-			template<std::integral T, std::enable_if_t<!std::is_signed_v<T>, bool> = true>
-			result_type visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
-				return yyjson_mut_uint(serializer.doc, obj);
-			}
+			//template<std::integral T, std::enable_if_t<!std::is_signed_v<T>, bool> = true>
+			//result_type visit_primitive(T& obj, const PrimitiveInfo<T>& info) {
+			//	return yyjson_mut_uint(serializer.doc, obj);
+			//}
 
-			result_type visit_primitive(float& obj, const PrimitiveInfo<float>& info) {
-				return yyjson_mut_float(serializer.doc, obj);
-			}
+			//result_type visit_primitive(float& obj, const PrimitiveInfo<float>& info) {
+			//	return yyjson_mut_float(serializer.doc, obj);
+			//}
 
-			result_type visit_primitive(double& obj, const PrimitiveInfo<double>& info) {
-				return yyjson_mut_real(serializer.doc, obj);
-			}
+			//result_type visit_primitive(double& obj, const PrimitiveInfo<double>& info) {
+			//	return yyjson_mut_real(serializer.doc, obj);
+			//}
 
-			result_type visit_primitive(bool& obj, const PrimitiveInfo<bool>& info) {
-				return yyjson_mut_bool(serializer.doc, obj);
-			}
+			//result_type visit_primitive(bool& obj, const PrimitiveInfo<bool>& info) {
+			//	return yyjson_mut_bool(serializer.doc, obj);
+			//}
 
-			// These can probably be replaced by a recursive simplerfl traversal.
-			result_type visit_primitive(ucsl::math::Vector2& obj, const PrimitiveInfo<ucsl::math::Vector2>& info) {
-				if constexpr (arrayVectors) {
-					yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-					for (size_t i = 0; i < obj.rows(); i++)
-						for (size_t j = 0; j < obj.cols(); j++)
-							yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
-					return res;
-				}
-				else {
-					yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
-					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
-					return res;
-				}
-			}
+			//// These can probably be replaced by a recursive simplerfl traversal.
+			//result_type visit_primitive(ucsl::math::Vector2& obj, const PrimitiveInfo<ucsl::math::Vector2>& info) {
+			//	if constexpr (arrayVectors) {
+			//		yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//		for (size_t i = 0; i < obj.rows(); i++)
+			//			for (size_t j = 0; j < obj.cols(); j++)
+			//				yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
+			//		return res;
+			//	}
+			//	else {
+			//		yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+			//		return res;
+			//	}
+			//}
 
-			result_type visit_primitive(ucsl::math::Vector3& obj, const PrimitiveInfo<ucsl::math::Vector3>& info) {
-				if constexpr (arrayVectors) {
-					yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-					for (size_t i = 0; i < obj.rows(); i++)
-						for (size_t j = 0; j < obj.cols(); j++)
-							yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
-					return res;
-				}
-				else {
-					yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
-					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
-					yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
-					return res;
-				}
-			}
+			//result_type visit_primitive(ucsl::math::Vector3& obj, const PrimitiveInfo<ucsl::math::Vector3>& info) {
+			//	if constexpr (arrayVectors) {
+			//		yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//		for (size_t i = 0; i < obj.rows(); i++)
+			//			for (size_t j = 0; j < obj.cols(); j++)
+			//				yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
+			//		return res;
+			//	}
+			//	else {
+			//		yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+			//		return res;
+			//	}
+			//}
 
-			result_type visit_primitive(ucsl::math::Position& obj, const PrimitiveInfo<ucsl::math::Position>& info) {
-				if constexpr (arrayVectors) {
-					yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-					for (size_t i = 0; i < obj.rows(); i++)
-						for (size_t j = 0; j < obj.cols(); j++)
-							yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
-					return res;
-				}
-				else {
-					yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
-					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
-					yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
-					return res;
-				}
-			}
+			//result_type visit_primitive(ucsl::math::Position& obj, const PrimitiveInfo<ucsl::math::Position>& info) {
+			//	if constexpr (arrayVectors) {
+			//		yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//		for (size_t i = 0; i < obj.rows(); i++)
+			//			for (size_t j = 0; j < obj.cols(); j++)
+			//				yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
+			//		return res;
+			//	}
+			//	else {
+			//		yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+			//		return res;
+			//	}
+			//}
 
-			result_type visit_primitive(ucsl::math::Rotation& obj, const PrimitiveInfo<ucsl::math::Rotation>& info) {
-				if constexpr (arrayVectors) {
-					yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-					yyjson_mut_arr_add_float(serializer.doc, res, obj.x());
-					yyjson_mut_arr_add_float(serializer.doc, res, obj.y());
-					yyjson_mut_arr_add_float(serializer.doc, res, obj.z());
-					yyjson_mut_arr_add_float(serializer.doc, res, obj.w());
-					return res;
-				}
-				else {
-					yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
-					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
-					yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
-					yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
-					return res;
-				}
-			}
+			//result_type visit_primitive(ucsl::math::Rotation& obj, const PrimitiveInfo<ucsl::math::Rotation>& info) {
+			//	if constexpr (arrayVectors) {
+			//		yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//		yyjson_mut_arr_add_float(serializer.doc, res, obj.x());
+			//		yyjson_mut_arr_add_float(serializer.doc, res, obj.y());
+			//		yyjson_mut_arr_add_float(serializer.doc, res, obj.z());
+			//		yyjson_mut_arr_add_float(serializer.doc, res, obj.w());
+			//		return res;
+			//	}
+			//	else {
+			//		yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
+			//		return res;
+			//	}
+			//}
 
-			result_type visit_primitive(ucsl::math::Vector4& obj, const PrimitiveInfo<ucsl::math::Vector4>& info) {
-				if constexpr (arrayVectors) {
-					yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-					for (size_t i = 0; i < obj.rows(); i++)
-						for (size_t j = 0; j < obj.cols(); j++)
-							yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
-					return res;
-				}
-				else {
-					yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
-					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
-					yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
-					yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
-					return res;
-				}
-			}
+			//result_type visit_primitive(ucsl::math::Vector4& obj, const PrimitiveInfo<ucsl::math::Vector4>& info) {
+			//	if constexpr (arrayVectors) {
+			//		yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//		for (size_t i = 0; i < obj.rows(); i++)
+			//			for (size_t j = 0; j < obj.cols(); j++)
+			//				yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
+			//		return res;
+			//	}
+			//	else {
+			//		yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
+			//		return res;
+			//	}
+			//}
 
-			result_type visit_primitive(ucsl::math::Quaternion& obj, const PrimitiveInfo<ucsl::math::Quaternion>& info) {
-				if constexpr (arrayVectors) {
-					yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-					for (size_t i = 0; i < obj.coeffs().rows(); i++)
-						for (size_t j = 0; j < obj.coeffs().cols(); j++)
-							yyjson_mut_arr_add_float(serializer.doc, res, obj.coeffs()(i, j));
-					return res;
-				}
-				else {
-					yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
-					yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
-					yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
-					yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
-					return res;
-				}
-			}
+			//result_type visit_primitive(ucsl::math::Quaternion& obj, const PrimitiveInfo<ucsl::math::Quaternion>& info) {
+			//	if constexpr (arrayVectors) {
+			//		yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//		for (size_t i = 0; i < obj.coeffs().rows(); i++)
+			//			for (size_t j = 0; j < obj.coeffs().cols(); j++)
+			//				yyjson_mut_arr_add_float(serializer.doc, res, obj.coeffs()(i, j));
+			//		return res;
+			//	}
+			//	else {
+			//		yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "x", obj.x());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "y", obj.y());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "z", obj.z());
+			//		yyjson_mut_obj_add_float(serializer.doc, res, "w", obj.w());
+			//		return res;
+			//	}
+			//}
 
-			result_type visit_primitive(ucsl::math::Matrix34& obj, const PrimitiveInfo<ucsl::math::Matrix34>& info) {
-				yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-				for (size_t i = 0; i < obj.rows(); i++)
-					for (size_t j = 0; j < obj.cols(); j++)
-						yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
-				return res;
-			}
+			//result_type visit_primitive(ucsl::math::Matrix34& obj, const PrimitiveInfo<ucsl::math::Matrix34>& info) {
+			//	yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//	for (size_t i = 0; i < obj.rows(); i++)
+			//		for (size_t j = 0; j < obj.cols(); j++)
+			//			yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
+			//	return res;
+			//}
 
-			result_type visit_primitive(ucsl::math::Matrix44& obj, const PrimitiveInfo<ucsl::math::Matrix44>& info) {
-				yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
-				for (size_t i = 0; i < obj.rows(); i++)
-					for (size_t j = 0; j < obj.cols(); j++)
-						yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
-				return res;
-			}
+			//result_type visit_primitive(ucsl::math::Matrix44& obj, const PrimitiveInfo<ucsl::math::Matrix44>& info) {
+			//	yyjson_mut_val* res = yyjson_mut_arr(serializer.doc);
+			//	for (size_t i = 0; i < obj.rows(); i++)
+			//		for (size_t j = 0; j < obj.cols(); j++)
+			//			yyjson_mut_arr_add_float(serializer.doc, res, obj(i, j));
+			//	return res;
+			//}
 
-			template<ucsl::colors::ChannelOrder order>
-			result_type visit_primitive(ucsl::colors::Color8<order>& obj, const PrimitiveInfo<ucsl::colors::Color8<order>>& info) {
-				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_uint(serializer.doc, res, "r", obj.r);
-				yyjson_mut_obj_add_uint(serializer.doc, res, "g", obj.g);
-				yyjson_mut_obj_add_uint(serializer.doc, res, "b", obj.b);
-				yyjson_mut_obj_add_uint(serializer.doc, res, "a", obj.a);
-				return res;
-			}
+			//template<ucsl::colors::ChannelOrder order>
+			//result_type visit_primitive(ucsl::colors::Color8<order>& obj, const PrimitiveInfo<ucsl::colors::Color8<order>>& info) {
+			//	yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//	yyjson_mut_obj_add_uint(serializer.doc, res, "r", obj.r);
+			//	yyjson_mut_obj_add_uint(serializer.doc, res, "g", obj.g);
+			//	yyjson_mut_obj_add_uint(serializer.doc, res, "b", obj.b);
+			//	yyjson_mut_obj_add_uint(serializer.doc, res, "a", obj.a);
+			//	return res;
+			//}
 
-			template<ucsl::colors::ChannelOrder order>
-			result_type visit_primitive(ucsl::colors::Colorf<order>& obj, const PrimitiveInfo<ucsl::colors::Colorf<order>>& info) {
-				yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
-				yyjson_mut_obj_add_float(serializer.doc, res, "r", obj.r);
-				yyjson_mut_obj_add_float(serializer.doc, res, "g", obj.g);
-				yyjson_mut_obj_add_float(serializer.doc, res, "b", obj.b);
-				yyjson_mut_obj_add_float(serializer.doc, res, "a", obj.a);
-				return res;
-			}
+			//template<ucsl::colors::ChannelOrder order>
+			//result_type visit_primitive(ucsl::colors::Colorf<order>& obj, const PrimitiveInfo<ucsl::colors::Colorf<order>>& info) {
+			//	yyjson_mut_val* res = yyjson_mut_obj(serializer.doc);
+			//	yyjson_mut_obj_add_float(serializer.doc, res, "r", obj.r);
+			//	yyjson_mut_obj_add_float(serializer.doc, res, "g", obj.g);
+			//	yyjson_mut_obj_add_float(serializer.doc, res, "b", obj.b);
+			//	yyjson_mut_obj_add_float(serializer.doc, res, "a", obj.a);
+			//	return res;
+			//}
 
-			result_type visit_primitive(ucsl::objectids::ObjectIdV1& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV1>& info) {
-				char guid[39];
-				util::toGUID(obj, guid);
-				return yyjson_mut_strcpy(serializer.doc, guid);
-			}
+			//result_type visit_primitive(ucsl::objectids::ObjectIdV1& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV1>& info) {
+			//	char guid[39];
+			//	util::toGUID(obj, guid);
+			//	return yyjson_mut_strcpy(serializer.doc, guid);
+			//}
 
-			result_type visit_primitive(ucsl::objectids::ObjectIdV2& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV2>& info) {
-				char guid[39];
-				util::toGUID(obj, guid);
-				return yyjson_mut_strcpy(serializer.doc, guid);
-			}
+			//result_type visit_primitive(ucsl::objectids::ObjectIdV2& obj, const PrimitiveInfo<ucsl::objectids::ObjectIdV2>& info) {
+			//	char guid[39];
+			//	util::toGUID(obj, guid);
+			//	return yyjson_mut_strcpy(serializer.doc, guid);
+			//}
 
-			result_type visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
-				return yyjson_mut_str(serializer.doc, obj.c_str());
-			}
+			//result_type visit_primitive(ucsl::strings::VariableString& obj, const PrimitiveInfo<ucsl::strings::VariableString>& info) {
+			//	return yyjson_mut_str(serializer.doc, obj.c_str());
+			//}
 
-			result_type visit_primitive(const char*& obj, const PrimitiveInfo<const char*>& info) {
-				return obj == nullptr ? yyjson_mut_null(serializer.doc) : yyjson_mut_str(serializer.doc, obj);
-			}
+			//result_type visit_primitive(const char*& obj, const PrimitiveInfo<const char*>& info) {
+			//	return obj == nullptr ? yyjson_mut_null(serializer.doc) : yyjson_mut_str(serializer.doc, obj);
+			//}
 
-			result_type visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
-				if (obj == nullptr)
-					return yyjson_mut_null(serializer.doc);
+			//result_type visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
+			//	if (obj == nullptr)
+			//		return yyjson_mut_null(serializer.doc);
 
-				if (auto ref = serializer.ptrDisambStore.get_reference(obj, 0)) {
-					yyjson_mut_val* refObj = yyjson_mut_obj(serializer.doc);
-					yyjson_mut_obj_add_strcpy(serializer.doc, refObj, "$ref", ref.value().c_str());
-					return refObj;
-				}
+			//	if (auto ref = serializer.ptrDisambStore.get_reference(obj, 0)) {
+			//		yyjson_mut_val* refObj = yyjson_mut_obj(serializer.doc);
+			//		yyjson_mut_obj_add_strcpy(serializer.doc, refObj, "$ref", ref.value().c_str());
+			//		return refObj;
+			//	}
 
-				assert(false && "cannot find backreference");
+			//	assert(false && "cannot find backreference");
+			//}
+
+			template<ucsl::reflection::accessors::PrimitiveAccessor Dst, ucsl::reflection::accessors::PrimitiveAccessor Src>
+			result_type visit_primitive(Dst dst, Src src) {
+				dst.visit([&](auto dstData) { src.visit([&](auto srcData) { dstData = srcData; }); });
+				return ref.val;
 			}
 
 			template<typename T, typename O>
 			result_type visit_enum(T& obj, const EnumInfo<O>& info) {
-				yyjson_mut_val* val = visit_primitive(obj, PrimitiveInfo<T>{}).value;
-				auto v = yyjson_mut_get_sint(val);
-				for (auto& option : info.options)
-					if (option.GetIndex() == v)
-						return yyjson_mut_strcpy(serializer.doc, option.GetEnglishName());
-				return val;
+				accessors::json_mut<arrayVectors>::Reference ref{ serializer.doc, nullptr };
+				accessors::json_mut<arrayVectors>::EnumAccessor<decltype(Obj)> res{ ref, obj.refl };
+
+				res = obj;
+
+				return ref.val;
 			}
 
 			template<typename T, typename O>

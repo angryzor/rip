@@ -7,7 +7,7 @@
 #include <yyjson.h>
 
 namespace rip::binary::accessors {
-	template<typename GameInterface, bool arrayVectors = false>
+	template<bool arrayVectors = false>
 	struct json_mut {
 		template<typename Refl> class ValueAccessor;
 
@@ -21,6 +21,7 @@ namespace rip::binary::accessors {
 
 		struct Reference {
 			enum class Kind {
+				CUSTOM,
 				ROOT,
 				PROPERTY,
 				INDEX,
@@ -47,6 +48,7 @@ namespace rip::binary::accessors {
 			Kind kind{};
 			Ref ref{};
 
+			Reference(yyjson_mut_doc* doc, yyjson_mut_val* val) : doc{ doc }, val{ val }, kind{ Kind::CUSTOM } {}
 			Reference(yyjson_mut_doc* doc) : doc{ doc }, val{ yyjson_mut_doc_get_root(doc) }, kind{ Kind::ROOT } {}
 			Reference(const Reference& parent, const char* key) : doc{ parent.doc }, val{ yyjson_mut_obj_get(parent, key) }, kind{ Kind::PROPERTY }, ref{ .property = { .obj = parent, .key = key } } {}
 			Reference(const Reference& parent, size_t index, yyjson_mut_val* val = nullptr) : doc{ parent.doc }, val{ val ? val : yyjson_mut_arr_get(parent, index) }, kind{ Kind::INDEX }, ref{ .index = { .arr = parent, .index = index } } {}
@@ -54,6 +56,7 @@ namespace rip::binary::accessors {
 
 			Reference& operator=(yyjson_mut_val* v) {
 				switch (kind) {
+				case Kind::CUSTOM: val = v; break;
 				case Kind::ROOT: yyjson_mut_doc_set_root(doc, v); val = v; break;
 				case Kind::PROPERTY: yyjson_mut_obj_replace(ref.property.obj, yyjson_mut_str(doc, ref.property.key), v); val = v; break;
 				case Kind::INDEX: yyjson_mut_arr_replace(ref.index.arr, ref.index.index, v); val = v; break;
@@ -66,6 +69,7 @@ namespace rip::binary::accessors {
 					return val;
 
 				switch (kind) {
+				case Kind::CUSTOM: assert("reading from custom json value that was not provided");
 				case Kind::ROOT: return yyjson_mut_doc_get_root(doc);
 				case Kind::PROPERTY: return yyjson_mut_obj_get(ref.property.obj, ref.property.key);
 				case Kind::INDEX: return yyjson_mut_arr_get(ref.index.arr, ref.index.index);
@@ -77,10 +81,9 @@ namespace rip::binary::accessors {
 
 		template<typename Refl>
 		class Accessor : public AccessorBase<Refl> {
-		protected:
-			Reference reference{};
-		
 		public:
+			Reference reference{};
+
 			inline Accessor(Reference reference, const Refl& refl = Refl{}) : AccessorBase<Refl>{ refl }, reference{ reference } {}
 		};
 
@@ -553,7 +556,7 @@ namespace rip::binary::accessors {
 			}
 
 			operator typename Refl::repr () const {
-				return { yyjson_mut_get_str(this->reference), GameInterface::AllocatorSystem::get_allocator() };
+				return yyjson_mut_get_str(this->reference);
 			}
 		};
 		template<typename Refl>
@@ -865,7 +868,7 @@ namespace rip::binary::accessors {
 	};
 
 
-	template<typename GameInterface, bool arrayVectors = false>
+	template<bool arrayVectors = false>
 	struct json {
 		template<typename Refl> class ValueAccessor;
 
@@ -879,6 +882,7 @@ namespace rip::binary::accessors {
 
 		struct Reference {
 			enum class Kind {
+				CUSTOM,
 				ROOT,
 				PROPERTY,
 				INDEX,
@@ -904,7 +908,8 @@ namespace rip::binary::accessors {
 			yyjson_val* val{};
 			Kind kind{};
 			Ref ref{};
-
+			
+			Reference(yyjson_doc* doc, yyjson_val* val) : doc{ doc }, val{ val }, kind{ Kind::CUSTOM } {}
 			Reference(yyjson_doc* doc) : doc{ doc }, val{ yyjson_doc_get_root(doc) }, kind{ Kind::ROOT } {}
 			Reference(const Reference& parent, const char* key) : doc{ parent.doc }, val{ yyjson_obj_get(parent, key) }, kind{ Kind::PROPERTY }, ref{ .property = { .obj = parent, .key = key } } {}
 			Reference(const Reference& parent, size_t index, yyjson_val* val = nullptr) : doc{ parent.doc }, val{ val ? val : yyjson_arr_get(parent, index) }, kind{ Kind::INDEX }, ref{ .index = { .arr = parent, .index = index } } {}
@@ -914,6 +919,7 @@ namespace rip::binary::accessors {
 					return val;
 
 				switch (kind) {
+				case Kind::CUSTOM: assert("reading from custom json value that was not provided");
 				case Kind::ROOT: return yyjson_doc_get_root(doc);
 				case Kind::PROPERTY: return yyjson_obj_get(ref.property.obj, ref.property.key);
 				case Kind::INDEX: return yyjson_arr_get(ref.index.arr, ref.index.index);
@@ -1226,7 +1232,7 @@ namespace rip::binary::accessors {
 			using Accessor<Refl>::Accessor;
 
 			operator typename Refl::repr () const {
-				return { yyjson_get_str(this->reference), GameInterface::AllocatorSystem::get_allocator() };
+				return yyjson_get_str(this->reference);
 			}
 		};
 		template<typename Refl>

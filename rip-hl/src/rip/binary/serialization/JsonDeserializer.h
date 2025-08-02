@@ -2,7 +2,9 @@
 #include <ucsl-reflection/reflections/basic-types.h>
 #include <ucsl-reflection/traversals/types.h>
 #include <ucsl-reflection/opaque.h>
+#include <ucsl-reflection/accessors/types.h>
 #include <rip/util/object-id-guids.h>
+#include <rip/binary/accessors/json.h>
 #include <yyjson.h>
 #include <iomanip>
 #include <sstream>
@@ -266,7 +268,10 @@ namespace rip::binary {
 				return 0;
 			}
 
-			result_type visit_primitive(void*& obj, const PrimitiveInfo<void*>& info) {
+			template<accessors::PrimitiveAccessor Obj>
+			result_type visit_primitive(Obj obj) {
+				accessors::json_mut<arrayVectors>::PrimitiveAccessor<decltype(Obj)> res{ { serializer.doc, nullptr }, obj.refl };
+				obj.visit([&](auto objData) { res.visit([&](auto resData) { resData = objData; }); });
 				return 0;
 			}
 
